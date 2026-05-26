@@ -1,5 +1,6 @@
 package xyz.mashtoolz.wtz.mixin;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,9 +15,13 @@ public class GameRendererMixin {
 
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void WTZ_onGetFov(Camera camera, float tickProgress, boolean changingFov, CallbackInfoReturnable<Float> cir) {
+        if (!MountCamera.getInstance().isThirdPersonActive()) return;
         int mountCameraFov = WTZClient.CONFIG.mountCameraFov;
-        if (MountCamera.getInstance().isActive() && mountCameraFov >= 30) {
-            cir.setReturnValue((float) WTZClient.CONFIG.mountCameraFov);
+        if (mountCameraFov >= 30) {
+            cir.setReturnValue((float) mountCameraFov);
+        } else {
+            MinecraftClient client = MinecraftClient.getInstance();
+            cir.setReturnValue(client.options.getFov().getValue().floatValue());
         }
     }
 }

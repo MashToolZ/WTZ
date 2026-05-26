@@ -32,6 +32,8 @@ public class WTZConfig implements ConfigData {
     // ── Mount Stats ──
     public boolean mountHelperEnabled = false;
     public float mountHelperLabelScale = 0.5f;
+    public boolean mountHelperHideMaxed = false;
+    public int mountHelperMaxedTimeout = 10;
 
     public boolean mountStatsEnabled = false;
     public boolean mountStatsAutoUpdate = false;
@@ -57,10 +59,14 @@ public class WTZConfig implements ConfigData {
     // ── Shopping List ──
     public boolean shoppingListEnabled = false;
     public float shoppingListScale = 1.0f;
+
+    // ── Mount Camera ──
     public boolean mountCameraEnabled = false;
     public boolean mountCameraScrollZoom = false;
     public int mountCameraFov = 29;
-    public double mountCameraOffsetZ = 0.0;
+    public double mountCameraOffsetZ = 4.0;
+    public boolean mountCameraAutoPerspective = false;
+    public boolean mountCameraFreeLook = false;
 
     // ── Shout TTS ──
     public boolean shoutTTSEnabled = false;
@@ -77,6 +83,7 @@ public class WTZConfig implements ConfigData {
     @Override
     public void validatePostLoad() throws ValidationException {
         mountHelperLabelScale = clamp(mountHelperLabelScale, 0.1f, 2.0f);
+        mountHelperMaxedTimeout = Math.max(5, Math.min(60, mountHelperMaxedTimeout));
         mountStatsOffsetX = Math.max(-50, Math.min(50, mountStatsOffsetX));
         mountStatsOffsetY = Math.max(-50, Math.min(50, mountStatsOffsetY));
         mountStatsScale = clamp(mountStatsScale, 0.1f, 2.0f);
@@ -121,6 +128,12 @@ public class WTZConfig implements ConfigData {
         mountHelper.addEntry(e.startFloatField(option("mountHelperLabelScale"), c.mountHelperLabelScale)
                 .setTooltip(tooltip("mountHelperLabelScale"))
                 .setDefaultValue(0.5f).setMin(0.1f).setMax(2.0f).setSaveConsumer(v -> c.mountHelperLabelScale = v).build());
+        mountHelper.addEntry(e.startBooleanToggle(option("mountHelperHideMaxed"), c.mountHelperHideMaxed)
+                .setTooltip(tooltip("mountHelperHideMaxed"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.mountHelperHideMaxed = v).build());
+        mountHelper.addEntry(e.startIntSlider(option("mountHelperMaxedTimeout"), c.mountHelperMaxedTimeout, 5, 60)
+                .setTooltip(tooltip("mountHelperMaxedTimeout"))
+                .setDefaultValue(10).setSaveConsumer(v -> c.mountHelperMaxedTimeout = v).build());
 
         // ── Mount Stats ──
         ConfigCategory mountStats = builder.getOrCreateCategory(category("mountStats"));
@@ -155,6 +168,12 @@ public class WTZConfig implements ConfigData {
         mountCamera.addEntry(e.startBooleanToggle(option("mountCameraEnabled"), c.mountCameraEnabled)
                 .setTooltip(tooltip("mountCameraEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraEnabled = v).build());
+        mountCamera.addEntry(e.startBooleanToggle(option("mountCameraAutoPerspective"), c.mountCameraAutoPerspective)
+                .setTooltip(tooltip("mountCameraAutoPerspective"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraAutoPerspective = v).build());
+        mountCamera.addEntry(e.startBooleanToggle(option("mountCameraFreeLook"), c.mountCameraFreeLook)
+                .setTooltip(tooltip("mountCameraFreeLook"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraFreeLook = v).build());
         mountCamera.addEntry(e.startBooleanToggle(option("mountCameraScrollZoom"), c.mountCameraScrollZoom)
                 .setTooltip(tooltip("mountCameraScrollZoom"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraScrollZoom = v).build());
@@ -164,7 +183,7 @@ public class WTZConfig implements ConfigData {
                 .setDefaultValue(29).setSaveConsumer(v -> c.mountCameraFov = v).build());
         mountCamera.addEntry(e.startDoubleField(option("mountCameraOffsetZ"), c.mountCameraOffsetZ)
                 .setTooltip(tooltip("mountCameraOffsetZ"))
-                .setDefaultValue(0.0).setMin(-5.0).setMax(5.0).setSaveConsumer(v -> c.mountCameraOffsetZ = v).build());
+                .setDefaultValue(4.0).setMin(-5.0).setMax(5.0).setSaveConsumer(v -> c.mountCameraOffsetZ = v).build());
 
         // ── Mount Item Overlay ──
         ConfigCategory mountItemOverlay = builder.getOrCreateCategory(category("mountItemOverlay"));

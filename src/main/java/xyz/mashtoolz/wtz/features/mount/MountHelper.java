@@ -39,6 +39,7 @@ public final class MountHelper {
             tickCounter++;
             if (tickCounter % REFRESH_INTERVAL_TICKS == 0) {
                 MountManager.refresh();
+                MountManager.filter();
             }
         });
 
@@ -63,7 +64,7 @@ public final class MountHelper {
         ClientPlayerEntity player = WTZClient.player();
         if (player == null) return;
 
-        List<Powerup> powerups = MountManager.getPowerups();
+        List<Powerup> powerups = MountManager.getFilteredPowerups();
         if (powerups.isEmpty()) return;
 
         Vec3d playerPos = player.getEntityPos();
@@ -84,7 +85,8 @@ public final class MountHelper {
             if (!hasLineOfSight(player, camera, powerup.pos())) continue;
 
             Label label = getLabel(powerup, spentEnergy, energyHeadroom);
-            renderLabel(context, matrices, textRenderer, camera, powerup.pos(), label);
+            int alpha = powerup.isMaxed() ? 0x80 : 0xFF;
+            renderLabel(context, matrices, textRenderer, camera, powerup.pos(), label, alpha);
         }
     }
 
@@ -135,7 +137,7 @@ public final class MountHelper {
     }
 
     private static void renderLabel(WorldRenderContext context, MatrixStack matrices, TextRenderer textRenderer,
-                                    Vec3d camera, Vec3d pos, Label label) {
+                                    Vec3d camera, Vec3d pos, Label label, int alpha) {
         matrices.push();
 
         double labelY = pos.y + 3.5;
@@ -149,7 +151,7 @@ public final class MountHelper {
         int width = textRenderer.getWidth(label.text);
         float x = -width / 2.0f;
 
-        int textColor = 0xFF000000 | label.color;
+        int textColor = ((alpha & 0xFF) << 24) | (label.color & 0xFFFFFF);
         VertexConsumerProvider consumers = context.consumers();
         org.joml.Matrix4f matrix = matrices.peek().getPositionMatrix();
 

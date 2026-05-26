@@ -16,6 +16,8 @@ import xyz.mashtoolz.wtz.util.ChatHelper;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -85,13 +87,18 @@ public final class RelayManager {
     }
 
     public String getOrCreateLocalPairingKey() {
+        boolean createdPairingKey = false;
         synchronized (lock) {
             if (currentPairingKey == null || currentPairingKey.isBlank()) {
                 currentPairingKey = UUID.randomUUID().toString();
                 keyStore.savePairingKey(currentPairingKey);
+                createdPairingKey = true;
             }
         }
-        connectNow();
+        if (createdPairingKey)
+            refreshConnection();
+        else
+            connectNow();
         synchronized (lock) {
             return currentPairingKey;
         }
@@ -350,9 +357,24 @@ public final class RelayManager {
         private final RelayManager manager;
 
         RelayClient(URI serverUri, RelayManager manager) {
-            super(serverUri);
+            super(serverUri, relayHeaders(serverUri));
             this.manager = manager;
             setConnectionLostTimeout(30);
+        }
+
+        private static Map<String, String> relayHeaders(URI serverUri) {
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("Origin", websocketOrigin(serverUri));
+            headers.put("User-Agent", "WynnToolZ-Mod/" + modVersion());
+            return headers;
+        }
+
+        private static String websocketOrigin(URI serverUri) {
+            String scheme = "wss".equalsIgnoreCase(serverUri.getScheme()) ? "https" : "http";
+            StringBuilder origin = new StringBuilder(scheme).append("://").append(serverUri.getHost());
+            if (serverUri.getPort() >= 0)
+                origin.append(':').append(serverUri.getPort());
+            return origin.toString();
         }
 
         @Override

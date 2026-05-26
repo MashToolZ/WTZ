@@ -22,14 +22,14 @@ public class MinecraftClientMixin {
         if (player != null) {
             MountCamera.getInstance().onItemUsed(player.getMainHandStack());
         }
-        if (MountCamera.getInstance().isActive()) {
+        if (MountCamera.getInstance().isThirdPersonActive()) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "handleBlockBreaking", at = @At("HEAD"), cancellable = true)
     private void WTZ_handleBlockBreaking(boolean breaking, CallbackInfo ci) {
-        if (MountCamera.getInstance().isActive()) {
+        if (MountCamera.getInstance().isThirdPersonActive()) {
             ci.cancel();
         }
     }

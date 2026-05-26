@@ -47,7 +47,7 @@ public abstract class CameraMixin {
         MountCamera cam = MountCamera.getInstance();
         cam.tick();
 
-        if (!cam.isActive()) return;
+        if (!cam.isThirdPersonActive()) return;
 
         Vec3d entityPos = focusedEntity.getLerpedPos(tickProgress);
         double eyeY = entityPos.y + MathHelper.lerp(tickProgress, lastCameraY, cameraY);

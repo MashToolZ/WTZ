@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 public class WTZClient implements ClientModInitializer {
 
     public static final String MOD_ID = "wtz";
-    public static final String MOD_NAME = "WynnToolz";
+    public static final String MOD_NAME = "WynnToolZ";
 
     private static final MinecraftClient CLIENT = MinecraftClient.getInstance();
 

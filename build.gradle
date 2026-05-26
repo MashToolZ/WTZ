@@ -70,7 +70,7 @@ processResources {
                 "minecraft_version": minecraftVersion,
                 "loader_version": loaderVersion,
                 "mod_id": "wtz",
-                "mod_name": "WynnToolz"
+                "mod_name": "WynnToolZ"
     }
 }
 

@@ -32,11 +32,71 @@ public class MountManager {
     private static final int DETECTION_RADIUS = 200;
 
     private static volatile List<Powerup> powerups = List.of();
+    private static volatile List<Powerup> filteredPowerups = List.of();
     private static volatile Map<Integer, PowerupDataEntry> powerupDataMap = Map.of();
     private static volatile long lastFetchTime = 0;
+    private static long lastNonMaxedSeenTime = 0;
 
     public static List<Powerup> getPowerups() {
         return powerups;
+    }
+
+    public static List<Powerup> getFilteredPowerups() {
+        return filteredPowerups;
+    }
+
+    public static void filter() {
+        List<Powerup> all = powerups;
+
+        if (!WTZClient.CONFIG.mountHelperHideMaxed || all.isEmpty()) {
+            for (Powerup p : all) p.setMaxed(false);
+            filteredPowerups = all;
+            return;
+        }
+
+        Map<String, int[]> mountStats = MountStatsOverlay.parse(MountStatsOverlay.getLastUsedItem());
+        if (mountStats.isEmpty()) {
+            for (Powerup p : all) p.setMaxed(false);
+            filteredPowerups = all;
+            return;
+        }
+
+        List<Powerup> nonMaxed = new ArrayList<>();
+        List<Powerup> maxedPowerups = new ArrayList<>();
+        List<Powerup> alwaysShow = new ArrayList<>();
+        for (Powerup powerup : all) {
+            powerup.setMaxed(false);
+            if ("Speed Boost".equals(powerup.name()) || "Energy Boost".equals(powerup.name())) {
+                alwaysShow.add(powerup);
+                continue;
+            }
+            int[] stat = mountStats.get(powerup.name());
+            if (stat == null || stat[0] < stat[1]) {
+                nonMaxed.add(powerup);
+            } else {
+                maxedPowerups.add(powerup);
+            }
+        }
+
+        if (!nonMaxed.isEmpty()) {
+            lastNonMaxedSeenTime = System.currentTimeMillis();
+            nonMaxed.addAll(alwaysShow);
+            filteredPowerups = nonMaxed;
+        } else {
+            if (lastNonMaxedSeenTime == 0) lastNonMaxedSeenTime = System.currentTimeMillis();
+            long elapsed = System.currentTimeMillis() - lastNonMaxedSeenTime;
+            long timeoutMs = WTZClient.CONFIG.mountHelperMaxedTimeout * 1000L;
+            if (elapsed >= timeoutMs) {
+                List<Powerup> result = new ArrayList<>(alwaysShow);
+                for (Powerup m : maxedPowerups) {
+                    m.setMaxed(true);
+                    result.add(m);
+                }
+                filteredPowerups = result;
+            } else {
+                filteredPowerups = alwaysShow;
+            }
+        }
     }
 
     public static void fetchMountData() {
