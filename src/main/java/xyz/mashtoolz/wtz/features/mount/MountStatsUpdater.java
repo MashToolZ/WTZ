@@ -92,7 +92,7 @@ public class MountStatsUpdater {
                     return;
                 }
                 net.sendPacket(new ClientCommandC2SPacket(player, ClientCommandC2SPacket.Mode.OPEN_INVENTORY));
-                waitTicks = 20; // timeout if screen never opens
+                waitTicks = 20; 
                 state = State.SCREEN_PENDING;
             }
             case SCREEN_PENDING -> {

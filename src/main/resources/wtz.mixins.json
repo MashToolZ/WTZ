@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "xyz.mashtoolz.wtz.mixin",
+  "plugin": "xyz.mashtoolz.wtz.mixin.WTZMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
   ],
@@ -17,7 +18,9 @@
     "InGameHudMixin",
     "InGameHudOverlayInvoker",
     "MinecraftClientMixin",
-    "MouseMixin"
+    "MouseMixin",
+    "WynntilsItemFilterServiceMixin",
+    "WynntilsItemSearchQueryMixin"
   ],
   "injectors": {
     "defaultRequire": 1

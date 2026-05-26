@@ -65,6 +65,7 @@ public abstract class HandledScreenMixin extends Screen {
 
     @Inject(method = "close", at = @At("HEAD"))
     private void WTZ_onClose(CallbackInfo ci) {
+        ShoppingListRenderer.getInstance().onScreenClosed((HandledScreen<?>) (Object) this);
         EnclosureScanner.onScreenClose((HandledScreen<?>) (Object) this);
     }
 
@@ -76,6 +77,7 @@ public abstract class HandledScreenMixin extends Screen {
 
     @Inject(method = "renderMain", at = @At("TAIL"))
     private void WTZ_afterRenderMain(DrawContext context, int mouseX, int mouseY, float deltaTick, CallbackInfo ci) {
+        ShoppingListRenderer.getInstance().autoOpenForScreen((HandledScreen<?>) (Object) this);
         ShoppingListRenderer.getInstance().render(context, mouseX, mouseY);
     }
 

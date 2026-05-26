@@ -170,13 +170,13 @@ public class MountItemOverlay {
     }
 
     private static final int[][] COLOR_STOPS = {
-            {240, 0xFF, 0x44, 0x44},  // 0-240  - red (baseline)
-            {480, 0xFF, 0xAA, 0x22},  // 480    - orange
-            {720, 0xFF, 0xFF, 0x33},  // 720    - yellow
-            {960, 0x55, 0xFF, 0x55},  // 960    - green
-            {1200, 0x20, 0xB3, 0xB3},  // 1200   - cyan
-            {1800, 0x77, 0x55, 0xFF},  // 1800   - purple
-            {2500, 0xFF, 0x55, 0xDD},  // 2500+  - pink
+            {240, 0xFF, 0x44, 0x44},  
+            {480, 0xFF, 0xAA, 0x22},  
+            {720, 0xFF, 0xFF, 0x33},  
+            {960, 0x55, 0xFF, 0x55},  
+            {1200, 0x20, 0xB3, 0xB3},  
+            {1800, 0x77, 0x55, 0xFF},  
+            {2500, 0xFF, 0x55, 0xDD},  
     };
 
     private static int potentialColor(double value) {

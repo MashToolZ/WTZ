@@ -29,12 +29,12 @@ public class MountUtils {
         return player != null && player.hasVehicle() && !player.getVehicle().isRemoved();
     }
 
-    /**
-     * Parses mount stats from item lore using 3-value format (level/limit/max).
-     * Falls back to 2-value format with max = -1.
-     *
-     * @return map of stat name → int[]{level, limit, max}
-     */
+    
+
+
+
+
+
     public static Map<String, int[]> parseFullStats(ItemStack stack) {
         Map<String, int[]> stats = new LinkedHashMap<>();
         LoreComponent lore = stack.get(DataComponentTypes.LORE);
@@ -54,10 +54,10 @@ public class MountUtils {
         return stats;
     }
 
-    /**
-     * Extracts the mount skin name from lore lines by looking for the
-     * tooltip/attribute/sprite font marker.
-     */
+    
+
+
+
     public static String extractSkin(List<Text> lines) {
         for (Text line : lines) {
             List<Text> parts = line.getSiblings();

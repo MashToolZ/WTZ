@@ -4,11 +4,9 @@
   "version": "${version}",
   "name": "${mod_name}",
   "description": "",
-  "authors": [
-    "Sakurasou"
-  ],
+  "authors": ["Sakurasou"],
   "contact": {},
-  "license": "GPL-3.0-or-later",
+  "license": "All-Rights-Reserved",
   "icon": "icon.png",
   "environment": "client",
   "entrypoints": {

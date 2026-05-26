@@ -29,11 +29,12 @@ public class WTZConfig implements ConfigData {
         if (holder != null) holder.save();
     }
 
-    // ── Mount Stats ──
+    
     public boolean mountHelperEnabled = false;
     public float mountHelperLabelScale = 0.5f;
     public boolean mountHelperHideMaxed = false;
     public int mountHelperMaxedTimeout = 10;
+    public int mountHelperMaxedOpacity = 30;
 
     public boolean mountStatsEnabled = false;
     public boolean mountStatsAutoUpdate = false;
@@ -44,23 +45,28 @@ public class WTZConfig implements ConfigData {
     public int mountStatsOffsetY = 0;
     public float mountStatsScale = 1.0f;
 
-    // ── Mount Item Overlay ──
+    
     public boolean mountItemOverlayEnabled = false;
     public boolean mountItemOverlayPotentialEnabled = false;
     public boolean mountItemOverlayBarsEnabled = false;
     public boolean mountSkinReportingEnabled = false;
 
-    // ── Quality of Life ──
+    
     public boolean qualityOfLifeEnabled = false;
     public boolean qolRightClickBack = false;
     public boolean qolHideActionbarInChat = false;
     public boolean qolActionbarAboveChat = false;
 
-    // ── Shopping List ──
+    
     public boolean shoppingListEnabled = false;
+    public boolean shoppingListAutoOpenTradeMarket = false;
     public float shoppingListScale = 1.0f;
+    public boolean bankFiltersEnabled = true;
+    public boolean bankFilterMountTypeEnabled = true;
+    public boolean bankFilterMountPrimaryColorEnabled = true;
+    public boolean bankFilterMountSecondaryColorEnabled = true;
 
-    // ── Mount Camera ──
+    
     public boolean mountCameraEnabled = false;
     public boolean mountCameraScrollZoom = false;
     public int mountCameraFov = 29;
@@ -68,13 +74,13 @@ public class WTZConfig implements ConfigData {
     public boolean mountCameraAutoPerspective = false;
     public boolean mountCameraFreeLook = false;
 
-    // ── Shout TTS ──
+    
     public boolean shoutTTSEnabled = false;
     public String shoutTTSToken = "";
     public int shoutTTSVolume = 40;
     public TTSVoice shoutTTSVoice = TTSVoice.RANDOM;
 
-    // ── Look Line ──
+    
     public boolean lookLineEnabled = false;
     public int lookLineMaxDistance = 10;
     public float lookLineWidth = 0.05f;
@@ -83,7 +89,8 @@ public class WTZConfig implements ConfigData {
     @Override
     public void validatePostLoad() throws ValidationException {
         mountHelperLabelScale = clamp(mountHelperLabelScale, 0.1f, 2.0f);
-        mountHelperMaxedTimeout = Math.max(5, Math.min(60, mountHelperMaxedTimeout));
+        mountHelperMaxedTimeout = Math.max(0, Math.min(60, mountHelperMaxedTimeout));
+        mountHelperMaxedOpacity = Math.max(0, Math.min(100, mountHelperMaxedOpacity));
         mountStatsOffsetX = Math.max(-50, Math.min(50, mountStatsOffsetX));
         mountStatsOffsetY = Math.max(-50, Math.min(50, mountStatsOffsetY));
         mountStatsScale = clamp(mountStatsScale, 0.1f, 2.0f);
@@ -99,7 +106,7 @@ public class WTZConfig implements ConfigData {
         return Math.max(min, Math.min(max, value));
     }
 
-    // ── Screen Builder ──
+    
 
     private static Text option(String key) {
         return Text.translatable("text.autoconfig.wtz-config.option." + key);
@@ -131,11 +138,14 @@ public class WTZConfig implements ConfigData {
         mountHelper.addEntry(e.startBooleanToggle(option("mountHelperHideMaxed"), c.mountHelperHideMaxed)
                 .setTooltip(tooltip("mountHelperHideMaxed"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountHelperHideMaxed = v).build());
-        mountHelper.addEntry(e.startIntSlider(option("mountHelperMaxedTimeout"), c.mountHelperMaxedTimeout, 5, 60)
+        mountHelper.addEntry(e.startIntSlider(option("mountHelperMaxedTimeout"), c.mountHelperMaxedTimeout, 0, 60)
                 .setTooltip(tooltip("mountHelperMaxedTimeout"))
                 .setDefaultValue(10).setSaveConsumer(v -> c.mountHelperMaxedTimeout = v).build());
+        mountHelper.addEntry(e.startIntSlider(option("mountHelperMaxedOpacity"), c.mountHelperMaxedOpacity, 0, 100)
+                .setTooltip(tooltip("mountHelperMaxedOpacity"))
+                .setDefaultValue(30).setSaveConsumer(v -> c.mountHelperMaxedOpacity = v).build());
 
-        // ── Mount Stats ──
+        
         ConfigCategory mountStats = builder.getOrCreateCategory(category("mountStats"));
         mountStats.addEntry(e.startBooleanToggle(option("mountStatsEnabled"), c.mountStatsEnabled)
                 .setTooltip(tooltip("mountStatsEnabled"))
@@ -185,7 +195,7 @@ public class WTZConfig implements ConfigData {
                 .setTooltip(tooltip("mountCameraOffsetZ"))
                 .setDefaultValue(4.0).setMin(-5.0).setMax(5.0).setSaveConsumer(v -> c.mountCameraOffsetZ = v).build());
 
-        // ── Mount Item Overlay ──
+        
         ConfigCategory mountItemOverlay = builder.getOrCreateCategory(category("mountItemOverlay"));
         mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayEnabled"), c.mountItemOverlayEnabled)
                 .setTooltip(tooltip("mountItemOverlayEnabled"))
@@ -197,7 +207,7 @@ public class WTZConfig implements ConfigData {
                 .setTooltip(tooltip("mountItemOverlayBarsEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayBarsEnabled = v).build());
 
-        // ── Quality of Life ──
+        
         ConfigCategory mountSkinReporting = builder.getOrCreateCategory(category("mountSkinReporting"));
         mountSkinReporting.addEntry(e.startBooleanToggle(option("mountSkinReportingEnabled"), c.mountSkinReportingEnabled)
                 .setTooltip(tooltip("mountSkinReportingEnabled"))
@@ -217,16 +227,33 @@ public class WTZConfig implements ConfigData {
                 .setTooltip(tooltip("qolActionbarAboveChat"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.qolActionbarAboveChat = v).build());
 
-        // ── Shopping List ──
+        
         ConfigCategory shoppingList = builder.getOrCreateCategory(category("shoppingList"));
         shoppingList.addEntry(e.startBooleanToggle(option("shoppingListEnabled"), c.shoppingListEnabled)
                 .setTooltip(tooltip("shoppingListEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.shoppingListEnabled = v).build());
+        shoppingList.addEntry(e.startBooleanToggle(option("shoppingListAutoOpenTradeMarket"), c.shoppingListAutoOpenTradeMarket)
+                .setTooltip(tooltip("shoppingListAutoOpenTradeMarket"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.shoppingListAutoOpenTradeMarket = v).build());
         shoppingList.addEntry(e.startFloatField(option("shoppingListScale"), c.shoppingListScale)
                 .setTooltip(tooltip("shoppingListScale"))
                 .setDefaultValue(1.0f).setMin(0.5f).setMax(1.0f).setSaveConsumer(v -> c.shoppingListScale = v).build());
 
-        // ── Shout TTS ──
+        ConfigCategory bankFilters = builder.getOrCreateCategory(category("bankFilters"));
+        bankFilters.addEntry(e.startBooleanToggle(option("bankFiltersEnabled"), c.bankFiltersEnabled)
+                .setTooltip(tooltip("bankFiltersEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.bankFiltersEnabled = v).build());
+        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountTypeEnabled"), c.bankFilterMountTypeEnabled)
+                .setTooltip(tooltip("bankFilterMountTypeEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountTypeEnabled = v).build());
+        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountPrimaryColorEnabled"), c.bankFilterMountPrimaryColorEnabled)
+                .setTooltip(tooltip("bankFilterMountPrimaryColorEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountPrimaryColorEnabled = v).build());
+        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountSecondaryColorEnabled"), c.bankFilterMountSecondaryColorEnabled)
+                .setTooltip(tooltip("bankFilterMountSecondaryColorEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountSecondaryColorEnabled = v).build());
+
+        
         ConfigCategory shoutTTS = builder.getOrCreateCategory(category("shoutTTS"));
         shoutTTS.addEntry(e.startBooleanToggle(option("shoutTTSEnabled"), c.shoutTTSEnabled)
                 .setTooltip(tooltip("shoutTTSEnabled"))
@@ -243,7 +270,7 @@ public class WTZConfig implements ConfigData {
                 .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.shoutTTSVoice." + v.name()))
                 .setSaveConsumer(v -> c.shoutTTSVoice = v).build());
 
-        // ── Look Line ──
+        
         ConfigCategory lookLine = builder.getOrCreateCategory(category("lookLine"));
         lookLine.addEntry(e.startBooleanToggle(option("lookLineEnabled"), c.lookLineEnabled)
                 .setTooltip(tooltip("lookLineEnabled"))

@@ -85,9 +85,13 @@ public final class MountHelper {
             if (!hasLineOfSight(player, camera, powerup.pos())) continue;
 
             Label label = getLabel(powerup, spentEnergy, energyHeadroom);
-            int alpha = powerup.isMaxed() ? 0x80 : 0xFF;
+            int alpha = powerup.isMaxed() ? maxedLabelAlpha() : 0xFF;
             renderLabel(context, matrices, textRenderer, camera, powerup.pos(), label, alpha);
         }
+    }
+
+    private static int maxedLabelAlpha() {
+        return Math.round(WTZClient.CONFIG.mountHelperMaxedOpacity * 255.0f / 100.0f);
     }
 
     private static Label getLabel(Powerup powerup, int spentEnergy, double energyHeadroom) {

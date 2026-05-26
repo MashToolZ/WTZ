@@ -78,6 +78,18 @@ public class MountManager {
             }
         }
 
+        long timeoutMs = WTZClient.CONFIG.mountHelperMaxedTimeout * 1000L;
+        if (timeoutMs <= 0) {
+            List<Powerup> result = new ArrayList<>(nonMaxed);
+            result.addAll(alwaysShow);
+            for (Powerup m : maxedPowerups) {
+                m.setMaxed(true);
+                result.add(m);
+            }
+            filteredPowerups = result;
+            return;
+        }
+
         if (!nonMaxed.isEmpty()) {
             lastNonMaxedSeenTime = System.currentTimeMillis();
             nonMaxed.addAll(alwaysShow);
@@ -85,7 +97,6 @@ public class MountManager {
         } else {
             if (lastNonMaxedSeenTime == 0) lastNonMaxedSeenTime = System.currentTimeMillis();
             long elapsed = System.currentTimeMillis() - lastNonMaxedSeenTime;
-            long timeoutMs = WTZClient.CONFIG.mountHelperMaxedTimeout * 1000L;
             if (elapsed >= timeoutMs) {
                 List<Powerup> result = new ArrayList<>(alwaysShow);
                 for (Powerup m : maxedPowerups) {

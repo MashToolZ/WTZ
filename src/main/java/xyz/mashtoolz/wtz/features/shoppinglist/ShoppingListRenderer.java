@@ -1,7 +1,9 @@
 package xyz.mashtoolz.wtz.features.shoppinglist;
 
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import xyz.mashtoolz.wtz.client.WTZClient;
+import xyz.mashtoolz.wtz.enums.GUI;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +15,8 @@ public class ShoppingListRenderer {
 
     private final List<ShoppingListPanel> panels = new ArrayList<>();
     private boolean globalVisible = false;
+    private HandledScreen<?> lastAutoOpenedTradeMarketScreen = null;
+    private boolean autoOpenedTradeMarket = false;
 
     private ShoppingListRenderer() {}
 
@@ -65,6 +69,26 @@ public class ShoppingListRenderer {
     public void showIfHidden() {
         globalVisible = true;
         ensureAtLeastOnePanel();
+    }
+
+    public void autoOpenForScreen(HandledScreen<?> screen) {
+        if (!WTZClient.CONFIG.shoppingListEnabled || !WTZClient.CONFIG.shoppingListAutoOpenTradeMarket) return;
+        if (!GUI.TRADE_MARKET.is(screen)) {
+            closeAutoOpenedTradeMarketPanel();
+            return;
+        }
+        if (lastAutoOpenedTradeMarketScreen == screen) return;
+
+        boolean wasVisible = globalVisible;
+        lastAutoOpenedTradeMarketScreen = screen;
+        showIfHidden();
+        autoOpenedTradeMarket = !wasVisible;
+    }
+
+    public void onScreenClosed(HandledScreen<?> screen) {
+        if (screen == lastAutoOpenedTradeMarketScreen) {
+            closeAutoOpenedTradeMarketPanel();
+        }
     }
 
     public void render(DrawContext context, int mouseX, int mouseY) {
@@ -161,6 +185,14 @@ public class ShoppingListRenderer {
     private void addPanel(String listId) {
         int offset = 10 + panels.size() * PANEL_OFFSET;
         panels.add(new ShoppingListPanel(listId, offset, offset));
+    }
+
+    private void closeAutoOpenedTradeMarketPanel() {
+        if (autoOpenedTradeMarket) {
+            globalVisible = false;
+        }
+        lastAutoOpenedTradeMarketScreen = null;
+        autoOpenedTradeMarket = false;
     }
 
     private boolean cannotUsePanel() {

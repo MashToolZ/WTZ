@@ -261,7 +261,7 @@ public final class MountSkinReporter {
         MinecraftClient client = WTZClient.client();
         client.execute(() -> {
             if (client.player == null) return;
-            ChatHelper.sendWarning("Mount skin reporting needs a WynnToolZ token. Link on the website, then run /wtz link <token>.");
+            ChatHelper.sendWarning("No WynnToolZ token configured. Run /wtz link to open the link page.");
         });
     }
 }

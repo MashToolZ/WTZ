@@ -7,6 +7,7 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import xyz.mashtoolz.wtz.config.WTZConfig;
 import xyz.mashtoolz.wtz.config.WTZConfig.TTSVoice;
 import xyz.mashtoolz.wtz.commands.WTZCommands;
+import xyz.mashtoolz.wtz.features.bankfilter.BankFilterRegistry;
 import xyz.mashtoolz.wtz.features.lookline.LookLineRenderer;
 import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 import xyz.mashtoolz.wtz.features.tts.ShoutTTS;
@@ -36,6 +37,7 @@ public class WTZClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        BankFilterRegistry.registerDefaults();
         WTZKeybinds.register();
         ShoppingListManager.getInstance().init();
         ShoppingListRenderer.getInstance().init();

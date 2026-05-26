@@ -30,6 +30,12 @@ public final class WTZCommands {
                                     openAuthLink();
                                     return 1;
                                 })
+                                .then(literal("status")
+                                        .executes(context -> {
+                                            showLinkStatus();
+                                            return 1;
+                                        })
+                                )
                                 .then(argument("token", StringArgumentType.word())
                                         .executes(context -> {
                                             String token = StringArgumentType.getString(context, "token");
@@ -58,6 +64,20 @@ public final class WTZCommands {
         STORE.saveToken(token);
         ChatHelper.sendSuccess("WynnToolZ token saved.");
         RelayManager.getInstance().refreshConnection();
+    }
+
+    private static void showLinkStatus() {
+        RelayManager.LinkStatus status = RelayManager.getInstance().linkStatus();
+        if (!status.hasToken()) {
+            ChatHelper.sendWarning("WynnToolZ is not linked. Run /wtz link to open the link page.");
+            return;
+        }
+
+        String relay = status.relayConnected() ? "relay connected" : "relay disconnected";
+        String pairing = status.paired()
+                ? "website paired"
+                : status.hasPairingKey() ? "website pairing saved" : "website not paired";
+        ChatHelper.sendSuccess("WynnToolZ is linked: API token saved, " + pairing + ", " + relay + ".");
     }
 
     private static void unlink() {

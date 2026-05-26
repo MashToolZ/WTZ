@@ -312,6 +312,17 @@ public final class RelayManager {
         connectNow();
     }
 
+    public LinkStatus linkStatus() {
+        synchronized (lock) {
+            return new LinkStatus(
+                    keyStore.hasToken(),
+                    currentPairingKey != null && !currentPairingKey.isBlank(),
+                    paired,
+                    connected
+            );
+        }
+    }
+
     private void scheduleReconnect() {
         synchronized (lock) {
             if (shuttingDown || reconnectSuppressed) return;
@@ -464,5 +475,8 @@ public final class RelayManager {
             if (pairingKey != null && !pairingKey.isBlank()) hello.addProperty("pairingKey", pairingKey);
             return hello;
         }
+    }
+
+    public record LinkStatus(boolean hasToken, boolean hasPairingKey, boolean paired, boolean relayConnected) {
     }
 }

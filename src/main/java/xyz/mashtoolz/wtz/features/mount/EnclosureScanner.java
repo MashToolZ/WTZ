@@ -119,22 +119,20 @@ public class EnclosureScanner {
     }
 
     private static JsonObject parseMaterialData(ItemStack stack, String name) {
-        JsonObject mat = new JsonObject();
-
-        String[] words = name.split(" ");
-        mat.addProperty("type", words[words.length - 1]);
-
         LoreComponent lore = stack.get(DataComponentTypes.LORE);
-        if (lore == null) return mat;
+        if (lore == null) return null;
 
         for (Text line : lore.lines()) {
             Matcher profM = MountPatterns.PROFESSION_LEVEL.matcher(line.getString());
             if (profM.find()) {
+                JsonObject mat = new JsonObject();
+                String[] words = name.split(" ");
+                mat.addProperty("type", words[words.length - 1]);
                 mat.addProperty("level", Integer.parseInt(profM.group(2)));
-                break;
+                return mat;
             }
         }
-        return mat;
+        return null;
     }
 
     private static JsonObject parseFeedSlotData(ItemStack stack) {
@@ -148,6 +146,7 @@ public class EnclosureScanner {
         }
 
         JsonObject mat = parseMaterialData(stack, feedName);
+        if (mat == null) return null;
         mat.addProperty("kind", "material");
         return mat;
     }
@@ -191,7 +190,7 @@ public class EnclosureScanner {
         for (Text line : lines) {
             String str = line.getString();
 
-            // Energy bar
+            
             Matcher energyM = MountPatterns.ENERGY.matcher(str);
             if (energyM.find()) {
                 JsonArray energyBar = new JsonArray();
@@ -201,14 +200,14 @@ public class EnclosureScanner {
                 continue;
             }
 
-            // Potential
+            
             Matcher potM = MountPatterns.POTENTIAL.matcher(str);
             if (potM.find()) {
                 mount.addProperty("potential", potM.group(1));
                 continue;
             }
 
-            // Status
+            
             Matcher statusM = MountPatterns.STATUS.matcher(str);
             if (statusM.find()) {
                 String raw = statusM.group(1);
@@ -224,7 +223,7 @@ public class EnclosureScanner {
                 continue;
             }
 
-            // Stats (level/limit with optional max)
+            
             Matcher m = MountPatterns.STAT.matcher(str);
             if (m.find()) {
                 JsonArray stat = new JsonArray();
@@ -235,7 +234,7 @@ public class EnclosureScanner {
             }
         }
 
-        // Skin (from tooltip/attribute/sprite font)
+        
         String skin = MountUtils.extractSkin(lines);
         if (skin != null) mount.addProperty("skin", skin);
 
