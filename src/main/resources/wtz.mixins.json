@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "xyz.mashtoolz.wtz.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+  ],
+  "client": [
+    "CameraMixin",
+    "ChatHudMixin",
+    "ChatScreenMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "ClientPlayerInteractionManagerMixin",
+    "GameRendererMixin",
+    "HandledScreenMixin",
+    "ScreenHandlerMixin",
+    "InGameHudMixin",
+    "InGameHudOverlayInvoker",
+    "MinecraftClientMixin",
+    "MouseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

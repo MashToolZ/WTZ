@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "",
+  "authors": [
+    "Sakurasou"
+  ],
+  "contact": {},
+  "license": "GPL-3.0-or-later",
+  "icon": "icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "xyz.mashtoolz.wtz.client.WTZClient"
+    ],
+    "modmenu": [
+      "xyz.mashtoolz.wtz.integrations.ModMenuIntegration"
+    ]
+  },
+  "accessWidener": "wtz.accesswidener",
+  "mixins": [
+    "wtz.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "cloth-config": "*"
+  }
+}
