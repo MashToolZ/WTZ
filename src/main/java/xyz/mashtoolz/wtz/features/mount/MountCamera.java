@@ -12,7 +12,7 @@ public class MountCamera {
     private static final float RETURN_SPEED = 0.15f;
     private static final float SNAP_THRESHOLD = 0.5f;
     private static final float MIN_ZOOM = 0.0f;
-    private static final float MAX_ZOOM = 10.0f;
+    private static final float MAX_ZOOM = 5.0f;
     private static final float ZOOM_STEP = 0.5f;
     private static final float DEFAULT_ZOOM = 0.0f;
 

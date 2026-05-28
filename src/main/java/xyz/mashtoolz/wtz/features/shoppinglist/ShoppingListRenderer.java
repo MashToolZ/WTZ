@@ -18,7 +18,8 @@ public class ShoppingListRenderer {
     private HandledScreen<?> lastAutoOpenedTradeMarketScreen = null;
     private boolean autoOpenedTradeMarket = false;
 
-    private ShoppingListRenderer() {}
+    private ShoppingListRenderer() {
+    }
 
     public static ShoppingListRenderer getInstance() {
         return INSTANCE;
@@ -119,7 +120,7 @@ public class ShoppingListRenderer {
 
     public boolean onMouseScrolled(double mouseX, double mouseY, double amount) {
         if (cannotUsePanel()) return false;
-
+ 
         for (int i = panels.size() - 1; i >= 0; i--) {
             ShoppingListPanel panel = panels.get(i);
             if (panel.isMouseOver(mouseX, mouseY)) {

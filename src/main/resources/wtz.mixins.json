@@ -18,7 +18,10 @@
     "InGameHudMixin",
     "InGameHudOverlayInvoker",
     "MinecraftClientMixin",
+    "MountStatsChatScreenMixin",
+    "MountStatsScreenMixin",
     "MouseMixin",
+    "ScreenTopLayerMixin",
     "WynntilsItemFilterServiceMixin",
     "WynntilsItemSearchQueryMixin"
   ],

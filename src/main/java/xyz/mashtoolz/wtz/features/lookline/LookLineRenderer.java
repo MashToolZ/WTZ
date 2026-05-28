@@ -21,7 +21,7 @@ public final class LookLineRenderer {
     public static void register() {
         WorldRenderEvents.BEFORE_DEBUG_RENDER.register(LookLineRenderer::render);
     }
-
+ 
     private static void render(WorldRenderContext context) {
         if (!WTZClient.CONFIG.lookLineEnabled) return;
 

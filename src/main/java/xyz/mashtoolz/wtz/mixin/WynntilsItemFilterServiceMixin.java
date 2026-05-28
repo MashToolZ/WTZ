@@ -9,7 +9,6 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import xyz.mashtoolz.wtz.features.bankfilter.WynntilsBankFilterSupport;
 
-import java.util.List;
 import java.util.Optional;
 
 @Mixin(targets = "com.wynntils.services.itemfilter.ItemFilterService", remap = false)
@@ -25,11 +24,7 @@ public abstract class WynntilsItemFilterServiceMixin {
     }
 
     @Inject(method = "createSearchQuery", at = @At("RETURN"), remap = false)
-    private void wtz$rememberBankFilters(
-            String queryString,
-            boolean supportsSorting,
-            List<?> supportedProviderTypes,
-            CallbackInfoReturnable<Object> cir) {
+    private void wtz$rememberBankFilters(CallbackInfoReturnable<Object> cir) {
         String originalQuery = WTZ_ORIGINAL_QUERY.get();
         WTZ_ORIGINAL_QUERY.remove();
         WynntilsBankFilterSupport.rememberOriginalQuery(cir.getReturnValue(), originalQuery);

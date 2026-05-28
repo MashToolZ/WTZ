@@ -42,6 +42,7 @@ public abstract class CameraMixin {
     @Shadow
     private float lastCameraY;
 
+    @SuppressWarnings("unused")
     @Inject(method = "update", at = @At("RETURN"))
     private void WTZ_afterUpdate(World area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickProgress, CallbackInfo ci) {
         MountCamera cam = MountCamera.getInstance();

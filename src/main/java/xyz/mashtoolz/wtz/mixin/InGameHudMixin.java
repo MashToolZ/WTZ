@@ -8,19 +8,20 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.minecraft.text.Text;
-import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 import xyz.mashtoolz.wtz.features.mount.MountItemOverlay;
 import xyz.mashtoolz.wtz.features.mount.MountStatsUpdater;
+import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
 @Mixin(InGameHud.class)
 public class InGameHudMixin {
 
+    @SuppressWarnings("unused")
     @Inject(method = "renderHotbarItem", at = @At("TAIL"))
     private void WTZ_afterRenderHotbarItem(DrawContext context, int x, int y, RenderTickCounter tickCounter, PlayerEntity player, ItemStack stack, int seed, CallbackInfo ci) {
         MountItemOverlay.renderHotbarItemOverlay(context, x, y, stack);
@@ -32,7 +33,7 @@ public class InGameHudMixin {
     }
 
     @Inject(method = "renderOverlayMessage", at = @At("HEAD"), cancellable = true)
-    private void WTZ_beforeRenderOverlayMessage(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+    private void WTZ_beforeRenderOverlayMessage(CallbackInfo ci) {
         Screen currentScreen = MinecraftClient.getInstance().currentScreen;
         if (currentScreen instanceof ChatScreen && QualityOfLife.shouldHideActionbarOnChat()) {
             ci.cancel();

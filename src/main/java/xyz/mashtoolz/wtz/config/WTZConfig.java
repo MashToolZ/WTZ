@@ -40,10 +40,10 @@ public class WTZConfig implements ConfigData {
     public boolean mountStatsAutoUpdate = false;
     public boolean mountStatsTrackHeld = false;
     public boolean mountStatsShowWhenNotMounted = false;
-    public Anchor mountStatsAnchor = Anchor.MIDDLE_RIGHT;
-    public int mountStatsOffsetX = 0;
-    public int mountStatsOffsetY = 0;
-    public float mountStatsScale = 1.0f;
+    public int mountStatsBgOpacity = 44;
+    public double mountStatsDragPctX = -1.0;
+    public double mountStatsDragPctY = -1.0;
+    public float mountStatsDragScale = 1.0f;
 
     
     public boolean mountItemOverlayEnabled = false;
@@ -91,9 +91,10 @@ public class WTZConfig implements ConfigData {
         mountHelperLabelScale = clamp(mountHelperLabelScale, 0.1f, 2.0f);
         mountHelperMaxedTimeout = Math.max(0, Math.min(60, mountHelperMaxedTimeout));
         mountHelperMaxedOpacity = Math.max(0, Math.min(100, mountHelperMaxedOpacity));
-        mountStatsOffsetX = Math.max(-50, Math.min(50, mountStatsOffsetX));
-        mountStatsOffsetY = Math.max(-50, Math.min(50, mountStatsOffsetY));
-        mountStatsScale = clamp(mountStatsScale, 0.1f, 2.0f);
+        mountStatsBgOpacity = Math.max(0, Math.min(100, mountStatsBgOpacity));
+        mountStatsDragPctX = mountStatsDragPctX < 0 ? -1.0 : Math.max(0.0, Math.min(100.0, mountStatsDragPctX));
+        mountStatsDragPctY = mountStatsDragPctY < 0 ? -1.0 : Math.max(0.0, Math.min(100.0, mountStatsDragPctY));
+        mountStatsDragScale = clamp(mountStatsDragScale, 0.3f, 2.0f);
         shoppingListScale = clamp(shoppingListScale, 0.5f, 1.0f);
         mountCameraFov = Math.max(29, Math.min(110, mountCameraFov));
         mountCameraOffsetZ = Math.max(-5.0, Math.min(5.0, mountCameraOffsetZ));
@@ -159,20 +160,9 @@ public class WTZConfig implements ConfigData {
         mountStats.addEntry(e.startBooleanToggle(option("mountStatsShowWhenNotMounted"), c.mountStatsShowWhenNotMounted)
                 .setTooltip(tooltip("mountStatsShowWhenNotMounted"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountStatsShowWhenNotMounted = v).build());
-        mountStats.addEntry(e.startEnumSelector(option("mountStatsAnchor"), Anchor.class, c.mountStatsAnchor)
-                .setTooltip(tooltip("mountStatsAnchor"))
-                .setDefaultValue(Anchor.MIDDLE_RIGHT)
-                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountStatsAnchor." + v.name()))
-                .setSaveConsumer(v -> c.mountStatsAnchor = v).build());
-        mountStats.addEntry(e.startIntSlider(option("mountStatsOffsetX"), c.mountStatsOffsetX, -50, 50)
-                .setTooltip(tooltip("mountStatsOffsetX"))
-                .setDefaultValue(0).setSaveConsumer(v -> c.mountStatsOffsetX = v).build());
-        mountStats.addEntry(e.startIntSlider(option("mountStatsOffsetY"), c.mountStatsOffsetY, -50, 50)
-                .setTooltip(tooltip("mountStatsOffsetY"))
-                .setDefaultValue(0).setSaveConsumer(v -> c.mountStatsOffsetY = v).build());
-        mountStats.addEntry(e.startFloatField(option("mountStatsScale"), c.mountStatsScale)
-                .setTooltip(tooltip("mountStatsScale"))
-                .setDefaultValue(1.0f).setMin(0.1f).setMax(2.0f).setSaveConsumer(v -> c.mountStatsScale = v).build());
+        mountStats.addEntry(e.startIntSlider(option("mountStatsBgOpacity"), c.mountStatsBgOpacity, 0, 100)
+                .setTooltip(tooltip("mountStatsBgOpacity"))
+                .setDefaultValue(44).setSaveConsumer(v -> c.mountStatsBgOpacity = v).build());
 
         ConfigCategory mountCamera = builder.getOrCreateCategory(category("mountCamera"));
         mountCamera.addEntry(e.startBooleanToggle(option("mountCameraEnabled"), c.mountCameraEnabled)
@@ -286,28 +276,6 @@ public class WTZConfig implements ConfigData {
                 .setDefaultValue(0xFFFFFFFF).setSaveConsumer(v -> c.lookLineColor = v).build());
 
         return builder.build();
-    }
-
-    public enum Anchor {
-        TOP_LEFT, TOP_CENTER, TOP_RIGHT,
-        MIDDLE_LEFT, MIDDLE_CENTER, MIDDLE_RIGHT,
-        BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT;
-
-        public int anchorX(int screenWidth, int boxWidth) {
-            return switch (this) {
-                case TOP_LEFT, MIDDLE_LEFT, BOTTOM_LEFT -> 0;
-                case TOP_CENTER, MIDDLE_CENTER, BOTTOM_CENTER -> (screenWidth - boxWidth) / 2;
-                case TOP_RIGHT, MIDDLE_RIGHT, BOTTOM_RIGHT -> screenWidth - boxWidth;
-            };
-        }
-
-        public int anchorY(int screenHeight, int boxHeight) {
-            return switch (this) {
-                case TOP_LEFT, TOP_CENTER, TOP_RIGHT -> 0;
-                case MIDDLE_LEFT, MIDDLE_CENTER, MIDDLE_RIGHT -> (screenHeight - boxHeight) / 2;
-                case BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT -> screenHeight - boxHeight;
-            };
-        }
     }
 
     public enum TTSVoice {

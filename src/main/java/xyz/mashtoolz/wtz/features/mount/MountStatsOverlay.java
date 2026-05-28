@@ -4,10 +4,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.util.Identifier;
+import org.lwjgl.glfw.GLFW;
 import xyz.mashtoolz.wtz.util.ColorUtils;
 import xyz.mashtoolz.wtz.client.WTZClient;
 import xyz.mashtoolz.wtz.config.WTZConfig;
@@ -26,31 +29,61 @@ import java.util.regex.Matcher;
 
 public class MountStatsOverlay {
 
-    private static final int BG_COLOR = 0x90000000;
+    
     private static final int DEFAULT_STAT_COLOR = 0xFFACFAC6;
     private static final int ENERGY_LABEL_COLOR = 0xFFD1D1D1;
     private static final int NAME_COLOR = 0xFFFFFFFF;
     private static final int CAP_COLOR = 0xFF808080;
-    private static final int PADDING = 5;
-    private static final int LINE_HEIGHT = 11;
+    private static final int NAME_ACTIVE_COLOR = 0xFF55FF55;
+    private static final int NAME_INACTIVE_COLOR = 0xFF808080;
+    private static final int PADDING = 3;
+    private static final int LINE_HEIGHT = 10;
+    private static final int GAP = 12;
 
+    
     private static final int DELTA_DURATION_MS = 2000;
     private static final int DELTA_POSITIVE_COLOR = 0xFF55FF55;
     private static final int DELTA_NEGATIVE_COLOR = 0xFFFF5555;
-    private static final int GAP = 14;
 
+    
     private static final int SLOT_REFRESH_INTERVAL = 20;
     private static final int MOUNTED_OUTLINE_COLOR = 0xFFFFFFFF;
-    private static final int MOUNTED_OUTLINE_THICKNESS = 2;
     private static final int NOT_MOUNTED_OUTLINE_COLOR = 0xFF7A7A7A;
     private static final int NO_OUTLINE = Integer.MIN_VALUE;
 
+    
+    private static final int DRAG_BORDER_IDLE = 0x40FF4800;
+    private static final int DRAG_BORDER_HOVER = 0x80FF4800;
+    private static final int DRAG_BORDER_ACTIVE = 0xC0FF4800;
+    private static final int RESIZE_HANDLE_SIZE = 6;
+    private static final float MIN_SCALE = 0.3f;
+    private static final float MAX_SCALE = 2.0f;
+
+    
     private static int lastUsedSlot = -1;
     private static int lastTrackedSlot = -1;
     private static boolean wasMounted = false;
     private static int slotRefreshCounter = 0;
     private static final Map<String, Integer> prevValues = new HashMap<>();
     private static final Map<String, Delta> deltas = new HashMap<>();
+
+    
+    private static boolean locked = true;
+
+    
+    private static boolean dragging = false;
+    private static int dragOffsetX, dragOffsetY;
+    private static int dragPosX, dragPosY;
+
+    
+    private static boolean resizing = false;
+    private static float previewScale;
+
+    
+    private static int lastOverlayX, lastOverlayY, lastOverlayScaledW, lastOverlayScaledH;
+    private static int lastUnscaledW, lastUnscaledH;
+
+    
 
     public static void onItemUsed(int slot) {
         ClientPlayerEntity player = WTZClient.player();
@@ -79,11 +112,199 @@ public class MountStatsOverlay {
 
     public static void register() {
         HudElementRegistry.attachElementAfter(
-                VanillaHudElements.BOSS_BAR,
+                VanillaHudElements.SCOREBOARD,
                 Identifier.of("wtz", "mount_stats"),
                 MountStatsOverlay::onHudRender
         );
         ClientTickEvents.END_CLIENT_TICK.register(client -> tickSlotRefresh());
+    }
+
+    public static Map<String, int[]> parse(ItemStack stack) {
+        return parseAll(stack).stats();
+    }
+
+    public static ParsedMount parseAll(ItemStack stack) {
+        Map<String, int[]> stats = new LinkedHashMap<>();
+        Map<String, Integer> statColors = new HashMap<>();
+        int[] energyPool = null;
+
+        LoreComponent lore = stack.get(DataComponentTypes.LORE);
+        if (lore == null) return new ParsedMount(stats, null, statColors);
+
+        for (Text line : lore.lines()) {
+            String str = line.getString();
+
+            Matcher em = MountPatterns.ENERGY.matcher(str);
+            if (em.find()) {
+                energyPool = new int[]{Integer.parseInt(em.group(1)), Integer.parseInt(em.group(2))};
+                continue;
+            }
+
+            Matcher m = MountPatterns.STAT.matcher(str);
+            if (m.find()) {
+                stats.put(m.group(1), new int[]{
+                        Integer.parseInt(m.group(2)),
+                        Integer.parseInt(m.group(3))
+                });
+            }
+        }
+
+        statColors.putAll(MountManager.getStatColors());
+
+        return new ParsedMount(stats, energyPool, statColors);
+    }
+
+    public static void render(DrawContext context, ItemStack stack) {
+        render(context, stack, NO_OUTLINE);
+    }
+
+    public static void render(DrawContext context, ItemStack stack, int outlineColor) {
+        if (stack == null || stack.isEmpty()) return;
+
+        ParsedMount parsed = parseAll(stack);
+        if (parsed.stats.isEmpty()) return;
+
+        String mountName = stack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
+        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor, -1, -1);
+    }
+
+    
+
+    public static void renderOnScreen(DrawContext context, int mouseX, int mouseY) {
+        if (!WTZClient.CONFIG.mountStatsEnabled) return;
+
+        ClientPlayerEntity player = WTZClient.player();
+        if (player == null) return;
+
+        boolean mounted = player.hasVehicle();
+        boolean showWhenNotMounted = WTZClient.CONFIG.mountStatsShowWhenNotMounted;
+        if (!mounted && !showWhenNotMounted) return;
+
+        ItemStack displayedStack = getDisplayStack(player, mounted);
+        if (displayedStack == null || displayedStack.isEmpty()) return;
+
+        ParsedMount parsed = parseAll(displayedStack);
+        if (parsed.stats().isEmpty()) return;
+
+        String mountName = displayedStack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
+
+        int outlineColor = NO_OUTLINE;
+        if (mounted && WTZClient.CONFIG.mountStatsTrackHeld) {
+            ItemStack mountedStack = getMountedItem();
+            outlineColor = isSameMount(displayedStack, mountedStack)
+                    ? MOUNTED_OUTLINE_COLOR
+                    : NOT_MOUNTED_OUTLINE_COLOR;
+        }
+
+        long window = WTZClient.client().getWindow().getHandle();
+        boolean mouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+
+        
+        if (dragging && !mouseDown) {
+            int screenW = WTZClient.client().getWindow().getScaledWidth();
+            int screenH = WTZClient.client().getWindow().getScaledHeight();
+            WTZClient.CONFIG.mountStatsDragPctX = screenW > 0 ? (double) dragPosX / screenW * 100.0 : -1.0;
+            WTZClient.CONFIG.mountStatsDragPctY = screenH > 0 ? (double) dragPosY / screenH * 100.0 : -1.0;
+            WTZConfig.save();
+            dragging = false;
+        }
+
+        
+        if (resizing && !mouseDown) {
+            WTZClient.CONFIG.mountStatsDragScale = previewScale;
+            WTZConfig.save();
+            resizing = false;
+        }
+
+        
+        if (dragging) {
+            dragPosX = mouseX - dragOffsetX;
+            dragPosY = mouseY - dragOffsetY;
+            int screenW = WTZClient.client().getWindow().getScaledWidth();
+            int screenH = WTZClient.client().getWindow().getScaledHeight();
+            dragPosX = Math.clamp(dragPosX, 0, Math.max(0, screenW - lastOverlayScaledW));
+            dragPosY = Math.clamp(dragPosY, 0, Math.max(0, screenH - lastOverlayScaledH));
+        }
+
+        
+        if (resizing && lastUnscaledW > 0) {
+            float newScale = (float) (mouseX - lastOverlayX) / lastUnscaledW;
+            previewScale = Math.clamp(newScale, MIN_SCALE, MAX_SCALE);
+        }
+
+        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor, mouseX, mouseY);
+
+        if (!locked) {
+            
+            boolean hovered = isMouseOverOverlay(mouseX, mouseY);
+            int borderColor = (dragging || resizing) ? DRAG_BORDER_ACTIVE : (hovered ? DRAG_BORDER_HOVER : DRAG_BORDER_IDLE);
+            int bx = lastOverlayX, by = lastOverlayY;
+            int bw = lastOverlayScaledW, bh = lastOverlayScaledH;
+            context.fill(bx, by, bx + bw, by + 1, borderColor);
+            context.fill(bx, by + bh - 1, bx + bw, by + bh, borderColor);
+            context.fill(bx, by, bx + 1, by + bh, borderColor);
+            context.fill(bx + bw - 1, by, bx + bw, by + bh, borderColor);
+
+            
+            int handleColor = isOverResizeHandle(mouseX, mouseY) || resizing ? DRAG_BORDER_ACTIVE : DRAG_BORDER_HOVER;
+            int hx = bx + bw;
+            int hy = by + bh;
+            for (int i = 0; i < RESIZE_HANDLE_SIZE; i++) {
+                context.fill(hx - RESIZE_HANDLE_SIZE + i, hy - 1 - i, hx, hy - i, handleColor);
+            }
+        }
+    }
+
+    public static boolean onScreenMouseClicked(double mouseX, double mouseY, int button) {
+        if (!WTZClient.CONFIG.mountStatsEnabled) return false;
+        if (!isMouseOverOverlay(mouseX, mouseY)) return false;
+
+        
+        if (button == 1) {
+            locked = !locked;
+            return true;
+        }
+
+        if (button != 0 || locked) return false;
+
+        
+        if (isOverResizeHandle(mouseX, mouseY)) {
+            resizing = true;
+            previewScale = getScale();
+            return true;
+        }
+
+        
+        dragging = true;
+        dragOffsetX = (int) mouseX - lastOverlayX;
+        dragOffsetY = (int) mouseY - lastOverlayY;
+        dragPosX = lastOverlayX;
+        dragPosY = lastOverlayY;
+        return true;
+    }
+
+    public static boolean isMouseOverOverlay(double mouseX, double mouseY) {
+        if (!WTZClient.CONFIG.mountStatsEnabled) return false;
+        return mouseX >= lastOverlayX && mouseX < lastOverlayX + lastOverlayScaledW
+                && mouseY >= lastOverlayY && mouseY < lastOverlayY + lastOverlayScaledH;
+    }
+
+    
+
+    private static boolean isOverResizeHandle(double mouseX, double mouseY) {
+        int hx = lastOverlayX + lastOverlayScaledW;
+        int hy = lastOverlayY + lastOverlayScaledH;
+        return mouseX >= hx - RESIZE_HANDLE_SIZE && mouseX < hx
+                && mouseY >= hy - RESIZE_HANDLE_SIZE && mouseY < hy;
+    }
+
+    private static int getBgColor() {
+        int alpha = (int) (WTZClient.CONFIG.mountStatsBgOpacity / 100.0f * 255);
+        return (alpha << 24);
+    }
+
+    private static float getScale() {
+        return resizing ? previewScale : WTZClient.CONFIG.mountStatsDragScale;
     }
 
     private static void tickSlotRefresh() {
@@ -102,6 +323,13 @@ public class MountStatsOverlay {
 
     private static void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
         if (!WTZClient.CONFIG.mountStatsEnabled) return;
+
+        
+        if (WTZClient.client().currentScreen instanceof HandledScreen<?>
+                || WTZClient.client().currentScreen instanceof ChatScreen) {
+            return;
+        }
+
         ClientPlayerEntity player = WTZClient.player();
         boolean mounted = player != null && player.hasVehicle();
         boolean showWhenNotMounted = WTZClient.CONFIG.mountStatsShowWhenNotMounted;
@@ -130,35 +358,30 @@ public class MountStatsOverlay {
             lastTrackedSlot = currentSlot;
         }
 
-        ItemStack displayedStack = getLastUsedItem();
-        if ((displayedStack == null || displayedStack.isEmpty()) && !mounted) {
-            displayedStack = player.getMainHandStack();
-        }
+        ItemStack displayedStack = getDisplayStack(player, mounted);
         if (displayedStack == null || displayedStack.isEmpty()) return;
 
         int outlineColor = NO_OUTLINE;
-        if (WTZClient.CONFIG.mountStatsTrackHeld) {
+        if (mounted && WTZClient.CONFIG.mountStatsTrackHeld) {
             ItemStack mountedStack = getMountedItem();
             outlineColor = isSameMount(displayedStack, mountedStack)
                     ? MOUNTED_OUTLINE_COLOR
                     : NOT_MOUNTED_OUTLINE_COLOR;
         }
 
-        render(context, displayedStack, outlineColor);
+        ParsedMount parsed = parseAll(displayedStack);
+        if (parsed.stats().isEmpty()) return;
+
+        String mountName = displayedStack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
+        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor, -1, -1);
     }
 
-    public static void render(DrawContext context, ItemStack stack) {
-        render(context, stack, NO_OUTLINE);
-    }
-
-    public static void render(DrawContext context, ItemStack stack, int outlineColor) {
-        if (stack == null || stack.isEmpty()) return;
-
-        ParsedMount parsed = parseAll(stack);
-        if (parsed.stats.isEmpty()) return;
-
-        String mountName = stack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
-        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor);
+    private static ItemStack getDisplayStack(ClientPlayerEntity player, boolean mounted) {
+        ItemStack displayedStack = getLastUsedItem();
+        if ((displayedStack == null || displayedStack.isEmpty()) && !mounted) {
+            displayedStack = player.getMainHandStack();
+        }
+        return displayedStack;
     }
 
     private static void trackDelta(String key, int currentValue) {
@@ -198,11 +421,40 @@ public class MountStatsOverlay {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
-    private static void renderStats(DrawContext context, String mountName, Map<String, int[]> stats, int[] energyPool, Map<String, Integer> statColors, int outlineColor) {
+    private static int[] computeScreenPosition(int screenWidth, int screenHeight, int scaledBoxWidth, int scaledBoxHeight) {
+        WTZConfig config = WTZClient.CONFIG;
+
+        if (dragging) {
+            int x = Math.clamp(dragPosX, 0, Math.max(0, screenWidth - scaledBoxWidth));
+            int y = Math.clamp(dragPosY, 0, Math.max(0, screenHeight - scaledBoxHeight));
+            return new int[]{x, y};
+        }
+
+        if (config.mountStatsDragPctX >= 0 && config.mountStatsDragPctY >= 0) {
+            int x = (int) (screenWidth * config.mountStatsDragPctX / 100.0);
+            int y = (int) (screenHeight * config.mountStatsDragPctY / 100.0);
+            x = Math.clamp(x, 0, Math.max(0, screenWidth - scaledBoxWidth));
+            y = Math.clamp(y, 0, Math.max(0, screenHeight - scaledBoxHeight));
+            return new int[]{x, y};
+        }
+
+        
+        int x = screenWidth - scaledBoxWidth;
+        int y = (screenHeight - scaledBoxHeight) / 2;
+        x = Math.clamp(x, 0, Math.max(0, screenWidth - scaledBoxWidth));
+        y = Math.clamp(y, 0, Math.max(0, screenHeight - scaledBoxHeight));
+        return new int[]{x, y};
+    }
+
+    private static void renderStats(DrawContext context, String mountName, Map<String, int[]> stats, int[] energyPool, Map<String, Integer> statColors, int outlineColor, int screenMouseX, int screenMouseY) {
         TextRenderer textRenderer = WTZClient.client().textRenderer;
         int screenWidth = WTZClient.client().getWindow().getScaledWidth();
         int screenHeight = WTZClient.client().getWindow().getScaledHeight();
-        float scale = WTZClient.CONFIG.mountStatsScale;
+        float scale = getScale();
+
+        int nameColor = NAME_COLOR;
+        if (outlineColor == MOUNTED_OUTLINE_COLOR) nameColor = NAME_ACTIVE_COLOR;
+        else if (outlineColor == NOT_MOUNTED_OUTLINE_COLOR) nameColor = NAME_INACTIVE_COLOR;
 
         int maxLabelWidth = 0;
         int maxValueWidth = 0;
@@ -235,44 +487,49 @@ public class MountStatsOverlay {
         contentWidth = Math.max(contentWidth, nameWidth);
         int boxWidth = contentWidth + PADDING * 2;
 
-        int nameHeight = (mountName != null && !mountName.isEmpty()) ? LINE_HEIGHT + 2 : 0;
+        int nameHeight = (mountName != null && !mountName.isEmpty()) ? LINE_HEIGHT : 0;
+        int separatorHeight = LINE_HEIGHT;
         int energyHeight = hasEnergy ? LINE_HEIGHT + 4 : 0;
-        int boxHeight = PADDING + nameHeight + energyHeight + (stats.size() * LINE_HEIGHT) + PADDING;
+        int boxHeight = PADDING + nameHeight + separatorHeight + energyHeight + (stats.size() * LINE_HEIGHT) + PADDING;
 
         int scaledBoxWidth = (int) (boxWidth * scale);
         int scaledBoxHeight = (int) (boxHeight * scale);
 
-        WTZConfig.Anchor anchor = WTZClient.CONFIG.mountStatsAnchor;
-        int anchorX = anchor.anchorX(screenWidth, scaledBoxWidth);
-        int anchorY = anchor.anchorY(screenHeight, scaledBoxHeight);
+        int[] pos = computeScreenPosition(screenWidth, screenHeight, scaledBoxWidth, scaledBoxHeight);
+        int x = pos[0];
+        int y = pos[1];
 
-        int offsetX = (int) (screenWidth * WTZClient.CONFIG.mountStatsOffsetX / 100.0);
-        int offsetY = (int) (screenHeight * WTZClient.CONFIG.mountStatsOffsetY / 100.0);
-
-        int x = Math.clamp(anchorX + offsetX, 0, Math.max(0, screenWidth - scaledBoxWidth));
-        int y = Math.clamp(anchorY + offsetY, 0, Math.max(0, screenHeight - scaledBoxHeight));
+        
+        lastOverlayX = x;
+        lastOverlayY = y;
+        lastOverlayScaledW = scaledBoxWidth;
+        lastOverlayScaledH = scaledBoxHeight;
+        lastUnscaledW = boxWidth;
+        lastUnscaledH = boxHeight;
 
         context.getMatrices().pushMatrix();
         context.getMatrices().translate(x, y);
         context.getMatrices().scale(scale, scale);
 
-        context.fill(0, 0, boxWidth, boxHeight, BG_COLOR);
-        if (outlineColor != NO_OUTLINE) {
-            int t = (outlineColor == MOUNTED_OUTLINE_COLOR) ? MOUNTED_OUTLINE_THICKNESS : 1;
-            context.fill(0, 0, boxWidth, t, outlineColor);
-            context.fill(0, boxHeight - t, boxWidth, boxHeight, outlineColor);
-            context.fill(0, 0, t, boxHeight, outlineColor);
-            context.fill(boxWidth - t, 0, boxWidth, boxHeight, outlineColor);
-        }
+        
+        int bg = getBgColor();
+        context.fill(1, 0, boxWidth - 1, 1, bg);
+        context.fill(0, 1, boxWidth, boxHeight - 1, bg);
+        context.fill(1, boxHeight - 1, boxWidth - 1, boxHeight, bg);
 
+        
         int textX = PADDING;
         int textY = PADDING;
 
+        
         if (mountName != null && !mountName.isEmpty()) {
             int nameX = PADDING + (contentWidth - nameWidth) / 2;
-            context.drawText(textRenderer, mountName, nameX, textY, NAME_COLOR, true);
-            textY += LINE_HEIGHT + 2;
+            context.drawText(textRenderer, mountName, nameX, textY, nameColor, true);
+            textY += LINE_HEIGHT;
         }
+
+        
+        textY += separatorHeight;
 
         if (hasEnergy) {
             float ratio = energyPool[1] > 0 ? (float) energyPool[0] / energyPool[1] : 0f;
@@ -327,41 +584,6 @@ public class MountStatsOverlay {
         }
 
         context.getMatrices().popMatrix();
-    }
-
-    public static Map<String, int[]> parse(ItemStack stack) {
-        return parseAll(stack).stats();
-    }
-
-    public static ParsedMount parseAll(ItemStack stack) {
-        Map<String, int[]> stats = new LinkedHashMap<>();
-        Map<String, Integer> statColors = new HashMap<>();
-        int[] energyPool = null;
-
-        LoreComponent lore = stack.get(DataComponentTypes.LORE);
-        if (lore == null) return new ParsedMount(stats, null, statColors);
-
-        for (Text line : lore.lines()) {
-            String str = line.getString();
-
-            Matcher em = MountPatterns.ENERGY.matcher(str);
-            if (em.find()) {
-                energyPool = new int[]{Integer.parseInt(em.group(1)), Integer.parseInt(em.group(2))};
-                continue;
-            }
-
-            Matcher m = MountPatterns.STAT.matcher(str);
-            if (m.find()) {
-                stats.put(m.group(1), new int[]{
-                        Integer.parseInt(m.group(2)),
-                        Integer.parseInt(m.group(3))
-                });
-            }
-        }
-
-        statColors.putAll(MountManager.getStatColors());
-
-        return new ParsedMount(stats, energyPool, statColors);
     }
 
     private static boolean isSameMount(ItemStack a, ItemStack b) {

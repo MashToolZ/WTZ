@@ -18,17 +18,18 @@ public class MinecraftClientMixin {
 
     @Inject(method = "doAttack", at = @At("HEAD"), cancellable = true)
     private void WTZ_doAttack(CallbackInfoReturnable<Boolean> cir) {
+        MountCamera cam = MountCamera.getInstance();
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
         if (player != null) {
-            MountCamera.getInstance().onItemUsed(player.getMainHandStack());
+            cam.onItemUsed(player.getMainHandStack());
         }
-        if (MountCamera.getInstance().isThirdPersonActive()) {
+        if (cam.isThirdPersonActive()) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "handleBlockBreaking", at = @At("HEAD"), cancellable = true)
-    private void WTZ_handleBlockBreaking(boolean breaking, CallbackInfo ci) {
+    private void WTZ_handleBlockBreaking(CallbackInfo ci) {
         if (MountCamera.getInstance().isThirdPersonActive()) {
             ci.cancel();
         }

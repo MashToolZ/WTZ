@@ -21,6 +21,7 @@ import xyz.mashtoolz.wtz.client.WTZClient;
 import xyz.mashtoolz.wtz.enums.GUI;
 
 import java.util.List;
+import java.util.Locale;
 
 public class QualityOfLife {
 
@@ -202,6 +203,11 @@ public class QualityOfLife {
         List<Text> lines = stack.getTooltip(Item.TooltipContext.DEFAULT, WTZClient.player(), TooltipType.BASIC);
         for (Text line : lines) {
             if (containsRightClickIcon(line)) return true;
+            String text = Formatting.strip(line.getString().toLowerCase(Locale.ROOT));
+            System.out.println(text);
+            if (text.matches(".*\\bright[-\\s]?click\\b.*")) {
+                return true;
+            }
         }
         return false;
     }

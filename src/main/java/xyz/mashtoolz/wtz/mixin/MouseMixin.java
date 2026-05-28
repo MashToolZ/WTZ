@@ -26,7 +26,7 @@ public class MouseMixin {
     private double cursorDeltaY;
 
     @Inject(method = "updateMouse", at = @At("HEAD"))
-    private void WTZ_onUpdateMouse(double timeDelta, CallbackInfo ci) {
+    private void WTZ_onUpdateMouse(CallbackInfo ci) {
         MountCamera cam = MountCamera.getInstance();
         if (!cam.isThirdPersonActive() || !WTZClient.CONFIG.mountCameraFreeLook) {
             cam.setFreeLooking(false);
@@ -48,6 +48,7 @@ public class MouseMixin {
         }
     }
 
+    @SuppressWarnings("unused")
     @Inject(method = "onMouseScroll", at = @At("HEAD"), cancellable = true)
     private void WTZ_onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
         if (client.currentScreen != null) return;
@@ -59,6 +60,7 @@ public class MouseMixin {
         }
     }
 
+    @SuppressWarnings("unused")
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void WTZ_onMouseButton(long window, MouseInput input, int action, CallbackInfo ci) {
         MountCamera cam = MountCamera.getInstance();
