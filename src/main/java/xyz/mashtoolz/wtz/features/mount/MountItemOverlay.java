@@ -3,7 +3,9 @@ package xyz.mashtoolz.wtz.features.mount;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.util.InputUtil;
 import org.joml.Matrix3x2fStack;
+import org.lwjgl.glfw.GLFW;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
@@ -13,9 +15,13 @@ import net.minecraft.text.Text;
 import xyz.mashtoolz.wtz.util.ColorUtils;
 import xyz.mashtoolz.wtz.util.ScreenUtils;
 import xyz.mashtoolz.wtz.client.WTZClient;
+import xyz.mashtoolz.wtz.config.WTZConfig.MountItemOverlayModifierKey;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MountItemOverlay {
 
@@ -23,6 +29,7 @@ public class MountItemOverlay {
 
     private static final int SHADOW_COLOR = 0xFF000000;
     private static final int SKIN_COLOR = 0xFFFFFFFF;
+    private static final Pattern SKIN_PART_SEPARATOR = Pattern.compile("\\s*-\\s*");
     private static final int BAR_HEIGHT = 2;
     private static final int BAR_GAP = 1;
     private static final int BAR_BG_COLOR = 0xFF000000;
@@ -30,6 +37,8 @@ public class MountItemOverlay {
     private static final int MAXED_BAR_COLOR = 0xFFDD55DD;
 
     public static void renderSkinOverlay(DrawContext context, Slot slot) {
+        if (!WTZClient.CONFIG.mountItemOverlaySkinColorsEnabled) return;
+
         HandledScreen<?> handled = ScreenUtils.currentHandledScreenOrNull();
         if (handled == null) return;
         if (!isMountSkinWindow(handled)) return;
@@ -39,7 +48,9 @@ public class MountItemOverlay {
         if (skin == null) return;
 
         TextRenderer textRenderer = WTZClient.client().textRenderer;
-        int textWidth = textRenderer.getWidth(skin);
+        String mount = extractMountType(slot.id);
+        List<SkinNameSegment> segments = skinNameSegments(mount, skin);
+        int textWidth = skinNameWidth(textRenderer, segments);
         float scale = 0.8f;
         float scaledWidth = textWidth * scale;
         float scaledHeight = 7 * scale;
@@ -54,26 +65,68 @@ public class MountItemOverlay {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 if (dx == 0 && dy == 0) continue;
-                context.drawText(textRenderer, skin, dx, dy, SHADOW_COLOR, false);
+                drawSkinName(context, textRenderer, segments, dx, dy, true);
             }
         }
 
-        int col = skin.contains("Mystic") ? 0xFFD897D6 : SKIN_COLOR;
-
-        context.drawText(textRenderer, skin, 0, 0, col, false);
+        drawSkinName(context, textRenderer, segments, 0, 0, false);
         matrices.popMatrix();
+    }
+
+    private record SkinNameSegment(String text, int color) {
+    }
+
+    private static List<SkinNameSegment> skinNameSegments(String mount, String skin) {
+        List<SkinNameSegment> segments = new ArrayList<>();
+        Matcher matcher = SKIN_PART_SEPARATOR.matcher(skin);
+        int last = 0;
+        int partIndex = 0;
+        while (matcher.find()) {
+            addSkinPart(segments, mount, roleForPart(partIndex++), skin.substring(last, matcher.start()));
+            segments.add(new SkinNameSegment(matcher.group(), SKIN_COLOR));
+            last = matcher.end();
+        }
+        addSkinPart(segments, mount, roleForPart(partIndex), skin.substring(last));
+
+        return segments.isEmpty() ? List.of(new SkinNameSegment(skin, SKIN_COLOR)) : segments;
+    }
+
+    private static void addSkinPart(List<SkinNameSegment> segments, String mount, String role, String text) {
+        if (text.isEmpty()) return;
+        segments.add(new SkinNameSegment(text, MountSkinColors.colorFor(mount, role, text, SKIN_COLOR)));
+    }
+
+    private static String roleForPart(int index) {
+        return index == 0 ? "primary" : "secondary";
+    }
+
+    private static int skinNameWidth(TextRenderer textRenderer, List<SkinNameSegment> segments) {
+        int width = 0;
+        for (SkinNameSegment segment : segments) {
+            width += textRenderer.getWidth(segment.text);
+        }
+        return width;
+    }
+
+    private static void drawSkinName(DrawContext context, TextRenderer textRenderer, List<SkinNameSegment> segments, int x, int y, boolean shadow) {
+        int currentX = x;
+        for (SkinNameSegment segment : segments) {
+            int color = shadow ? SHADOW_COLOR : segment.color;
+            context.drawText(textRenderer, segment.text, currentX, y, color, false);
+            currentX += textRenderer.getWidth(segment.text);
+        }
     }
 
     public static void renderSlotOverlay(DrawContext context, Slot slot) {
         if (!slot.hasStack()) return;
-        renderOverlayAt(context, slot.x, slot.y, slot.getStack());
+        renderOverlayAt(context, slot.x, slot.y, slot.getStack(), true);
     }
 
     public static void renderHotbarItemOverlay(DrawContext context, int x, int y, ItemStack stack) {
-        renderOverlayAt(context, x, y, stack);
+        renderOverlayAt(context, x, y, stack, false);
     }
 
-    private static void renderOverlayAt(DrawContext context, int x, int y, ItemStack stack) {
+    private static void renderOverlayAt(DrawContext context, int x, int y, ItemStack stack, boolean inventorySlot) {
         if (!WTZClient.CONFIG.mountItemOverlayEnabled) return;
         if (stack == null || stack.isEmpty()) return;
 
@@ -106,7 +159,7 @@ public class MountItemOverlay {
             potentialValue = info.value;
         }
 
-        boolean showBars = WTZClient.CONFIG.mountItemOverlayBarsEnabled;
+        boolean showBars = WTZClient.CONFIG.mountItemOverlayBarsEnabled && shouldShowStatBars(inventorySlot);
         boolean showPotential = WTZClient.CONFIG.mountItemOverlayPotentialEnabled;
 
         if (showBars) {
@@ -142,6 +195,22 @@ public class MountItemOverlay {
             context.drawText(textRenderer, potential, 0, 0, color, false);
             matrices.popMatrix();
         }
+    }
+
+    private static boolean shouldShowStatBars(boolean inventorySlot) {
+        MountItemOverlayModifierKey key = WTZClient.CONFIG.mountItemOverlayBarsModifierKey;
+        if (!inventorySlot && WTZClient.CONFIG.mountItemOverlayBarsAlwaysShowInHotbar) return true;
+        return switch (key) {
+            case NONE -> true;
+            case CTRL -> inventorySlot && isKeyPressed(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL);
+            case SHIFT -> inventorySlot && isKeyPressed(GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT);
+            case ALT -> inventorySlot && isKeyPressed(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_RIGHT_ALT);
+        };
+    }
+
+    private static boolean isKeyPressed(int leftKey, int rightKey) {
+        return InputUtil.isKeyPressed(WTZClient.client().getWindow(), leftKey)
+                || InputUtil.isKeyPressed(WTZClient.client().getWindow(), rightKey);
     }
 
     private record PotentialInfo(String formatted, double value) {
@@ -264,6 +333,23 @@ public class MountItemOverlay {
         LoreComponent lore = stack.get(DataComponentTypes.LORE);
         if (lore == null) return null;
         return MountUtils.extractSkin(lore.lines());
+    }
+
+    private static String extractMountType(int slotId) {
+        HandledScreen<?> handled = ScreenUtils.currentHandledScreenOrNull();
+        if (handled == null) return "";
+
+        ScreenHandler handler = handled.getScreenHandler();
+        if (slotId < 0 || slotId >= handler.slots.size()) return "";
+
+        ItemStack stack = handler.getSlot(slotId).getStack();
+        if (stack.isEmpty()) return "";
+
+        String name = stack.getName().getString();
+        if (name.contains("Saddle")) return "Horse";
+        if (name.contains("Reins")) return "Wyvern";
+        if (name.contains("Harness")) return "Adasaur";
+        return "";
     }
 
     private static String formatPotential(String raw) {

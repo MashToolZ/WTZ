@@ -1,6 +1,7 @@
 package xyz.mashtoolz.wtz.features.shoppinglist;
 
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import xyz.mashtoolz.wtz.client.WTZClient;
 import xyz.mashtoolz.wtz.enums.GUI;
@@ -12,11 +13,13 @@ public class ShoppingListRenderer {
 
     private static final ShoppingListRenderer INSTANCE = new ShoppingListRenderer();
     private static final int PANEL_OFFSET = 20;
+    private static final long NPC_OPEN_GRACE_MS = 2_000L;
 
     private final List<ShoppingListPanel> panels = new ArrayList<>();
     private boolean globalVisible = false;
     private HandledScreen<?> lastAutoOpenedTradeMarketScreen = null;
     private boolean autoOpenedTradeMarket = false;
+    private long pendingNpcTradeMarketOpenUntilMs = 0L;
 
     private ShoppingListRenderer() {
     }
@@ -79,6 +82,7 @@ public class ShoppingListRenderer {
             return;
         }
         if (lastAutoOpenedTradeMarketScreen == screen) return;
+        if (!consumePendingNpcTradeMarketOpen()) return;
 
         boolean wasVisible = globalVisible;
         lastAutoOpenedTradeMarketScreen = screen;
@@ -87,9 +91,20 @@ public class ShoppingListRenderer {
     }
 
     public void onScreenClosed(HandledScreen<?> screen) {
-        if (screen == lastAutoOpenedTradeMarketScreen) {
-            closeAutoOpenedTradeMarketPanel();
+        if (screen == lastAutoOpenedTradeMarketScreen && WTZClient.client().currentScreen == null) {
+            onScreenChanged(null);
         }
+    }
+
+    public void onScreenChanged(Screen screen) {
+        if (screen instanceof HandledScreen<?> handledScreen && GUI.TRADE_MARKET.is(handledScreen)) return;
+
+        pendingNpcTradeMarketOpenUntilMs = 0L;
+        closeAutoOpenedTradeMarketPanel();
+    }
+
+    public void onNpcInteraction() {
+        pendingNpcTradeMarketOpenUntilMs = System.currentTimeMillis() + NPC_OPEN_GRACE_MS;
     }
 
     public void render(DrawContext context, int mouseX, int mouseY) {
@@ -194,6 +209,15 @@ public class ShoppingListRenderer {
         }
         lastAutoOpenedTradeMarketScreen = null;
         autoOpenedTradeMarket = false;
+    }
+
+    private boolean consumePendingNpcTradeMarketOpen() {
+        if (System.currentTimeMillis() > pendingNpcTradeMarketOpenUntilMs) {
+            pendingNpcTradeMarketOpenUntilMs = 0L;
+            return false;
+        }
+        pendingNpcTradeMarketOpenUntilMs = 0L;
+        return true;
     }
 
     private boolean cannotUsePanel() {

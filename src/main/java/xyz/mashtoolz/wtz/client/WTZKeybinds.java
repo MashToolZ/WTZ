@@ -11,6 +11,7 @@ import xyz.mashtoolz.wtz.features.tts.ShoutTTS;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 import xyz.mashtoolz.wtz.features.mount.MountHelper;
 import xyz.mashtoolz.wtz.features.mount.MountUtils;
+import xyz.mashtoolz.wtz.screen.OverlayEditScreen;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +23,7 @@ public class WTZKeybinds {
     public static final KeyBinding CONFIG = register("key.wtz.config");
     public static final KeyBinding MOUNT_HELPER = register("key.wtz.mount_helper");
     public static final KeyBinding COPY_MOUNT_STATS = register("key.wtz.copy_mount_stats");
+    public static final KeyBinding EDIT_OVERLAYS = register("key.wtz.edit_overlays");
     public static final KeyBinding ADD_TO_SHOPPING_LIST = register("key.wtz.add_to_shopping_list");
     public static final KeyBinding TOGGLE_SHOPPING_LIST = register("key.wtz.toggle_shopping_list");
     public static final KeyBinding STOP_TTS = register("key.wtz.stop_tts");
@@ -34,6 +36,7 @@ public class WTZKeybinds {
         ));
         onPress(MOUNT_HELPER, MountHelper::toggle);
         onPress(COPY_MOUNT_STATS, MountUtils::copyHoveredStats);
+        onPress(EDIT_OVERLAYS, OverlayEditScreen::toggle);
         onPress(TOGGLE_SHOPPING_LIST, () -> ShoppingListRenderer.getInstance().toggleVisibility());
         onPress(STOP_TTS, ShoutTTS::stopPlayback);
 

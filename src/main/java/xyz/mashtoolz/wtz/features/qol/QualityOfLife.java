@@ -6,6 +6,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.util.Window;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -31,6 +34,7 @@ public class QualityOfLife {
     private static String pendingSearchName = null;
     private static String suppressSearchEcho = null;
     private static boolean openChatNextTick = false;
+    private static boolean macOSMovementKeyFixPending = false;
     private static boolean renderingActionbarAboveChat = false;
     private static final long AUTO_REOPEN_FREEZE_MS = 500L;
     private static long frozenUntilMs = 0L;
@@ -41,6 +45,13 @@ public class QualityOfLife {
             if (openChatNextTick) {
                 openChatNextTick = false;
                 client.setScreen(new ChatScreen("", false));
+            }
+            if (macOSMovementKeyFixPending) {
+                if (shouldSkipMacOSMovementKeyFix()) {
+                    macOSMovementKeyFixPending = false;
+                } else if (applyMacOSMovementKeyFix(client)) {
+                    macOSMovementKeyFixPending = false;
+                }
             }
         });
     }
@@ -115,6 +126,19 @@ public class QualityOfLife {
     public static boolean shouldHideActionbarOnChat() {
         return WTZClient.CONFIG.qualityOfLifeEnabled
                 && WTZClient.CONFIG.qolHideActionbarInChat;
+    }
+
+    public static void onHandledScreenClosedToGameplay() {
+        scheduleMacOSMovementKeyFix();
+    }
+
+    public static void onHandledScreenCloseStarted() {
+        scheduleMacOSMovementKeyFix();
+    }
+
+    public static void scheduleMacOSMovementKeyFix() {
+        if (shouldSkipMacOSMovementKeyFix()) return;
+        macOSMovementKeyFixPending = true;
     }
 
     public static boolean isRenderingActionbarAboveChat() {
@@ -227,6 +251,37 @@ public class QualityOfLife {
             if (s.hasStack() && s.getStack().getName().getString().equals("Sell Order Summary")) return true;
         }
         return false;
+    }
+
+    private static boolean shouldSkipMacOSMovementKeyFix() {
+        return !WTZClient.CONFIG.qualityOfLifeEnabled
+                || !WTZClient.CONFIG.qolMacOSMovementKeyFix;
+    }
+
+    private static boolean applyMacOSMovementKeyFix(MinecraftClient client) {
+        if (shouldSkipMacOSMovementKeyFix()) return true;
+        if (client.currentScreen != null || client.player == null || client.world == null) return false;
+        if (client.options == null || client.getWindow() == null) return false;
+
+        Window window = client.getWindow();
+        resyncKey(client.options.forwardKey, window);
+        resyncKey(client.options.backKey, window);
+        resyncKey(client.options.leftKey, window);
+        resyncKey(client.options.rightKey, window);
+        resyncKey(client.options.jumpKey, window);
+        resyncKey(client.options.sneakKey, window);
+        resyncKey(client.options.sprintKey, window);
+        return true;
+    }
+
+    private static void resyncKey(KeyBinding key, Window window) {
+        if (key == null || key.isUnbound()) return;
+
+        String translationKey = key.getBoundKeyTranslationKey();
+        if (!translationKey.startsWith("key.keyboard.")) return;
+
+        InputUtil.Key inputKey = InputUtil.fromTranslationKey(translationKey);
+        key.setPressed(InputUtil.isKeyPressed(window, inputKey.getCode()));
     }
 
     public static boolean isScreenFrozen() {

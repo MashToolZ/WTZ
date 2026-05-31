@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import xyz.mashtoolz.wtz.features.mount.MountStatsOverlay;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
 @Mixin(Screen.class)
@@ -20,9 +19,6 @@ public class ScreenTopLayerMixin {
         if (!(screen instanceof HandledScreen<?>) && !(screen instanceof ChatScreen)) return;
 
         context.createNewRootLayer();
-        if (screen instanceof ChatScreen) {
-            MountStatsOverlay.renderOnScreen(context, mouseX, mouseY);
-        }
         if (screen instanceof HandledScreen<?> handledScreen) {
             ShoppingListRenderer.getInstance().autoOpenForScreen(handledScreen);
         }

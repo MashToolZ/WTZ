@@ -2,18 +2,26 @@ package xyz.mashtoolz.wtz.features.mount;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.text.Text;
 import xyz.mashtoolz.wtz.client.WTZClient;
+import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 
 public class MountStatsUpdater {
 
     private static final String PILL_FONT_FRAGMENT = "pill";
+    private static final String MOUNT_ENERGY_FONT_FRAGMENT = "hud/gameplay/default/center_left";
+    private static final int MOUNT_ENERGY_FULL_GLYPH = 0xE000;
+    private static final int MOUNT_ENERGY_EMPTY_GLYPH = 0xE02F;
+    private static final int ENERGY_UPDATE_DEBOUNCE_TICKS = 4;
+
     private static String lastDecoded = "";
+    private static String currentMountEnergySignature = "";
+    private static String lastMountEnergySignature = "";
+    private static int pendingEnergyUpdateTicks = -1;
 
     private enum State {IDLE, WAITING, OPEN_PENDING, SCREEN_PENDING}
 
@@ -23,12 +31,6 @@ public class MountStatsUpdater {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(mc -> tick());
-    }
-
-    public static void onScreenOpened(Screen screen) {
-        if (!WTZClient.CONFIG.mountStatsAutoUpdate) return;
-        if (state != State.SCREEN_PENDING) return;
-        if (!(screen instanceof HandledScreen<?>)) return;
     }
 
     public static void onSlotsUpdated(HandledScreen<?> screen) {
@@ -44,8 +46,16 @@ public class MountStatsUpdater {
     }
 
     public static void onActionBar(Text message) {
+        String mountEnergySignature = mountEnergySignature(message);
+        boolean mountEnergyChanged = updateMountEnergySignature(mountEnergySignature);
+
         if (!WTZClient.CONFIG.mountStatsAutoUpdate) return;
-        if (!MountUtils.isMounted()) return;
+        if (isMissingMountedSignal()) return;
+
+        if (mountEnergyChanged) {
+            pendingEnergyUpdateTicks = ENERGY_UPDATE_DEBOUNCE_TICKS;
+            return;
+        }
 
         StringBuilder pillChars = new StringBuilder();
         extractPillText(message, pillChars);
@@ -60,20 +70,34 @@ public class MountStatsUpdater {
         if (decoded.equals(lastDecoded)) return;
         lastDecoded = decoded;
 
-        if (state == State.IDLE) {
-            waitTicks = WAIT_DELAY;
-            state = State.WAITING;
-        }
+        scheduleUpdate();
+    }
+
+    public static boolean hasMountEnergyBar() {
+        return !currentMountEnergySignature.isEmpty();
+    }
+
+    private static boolean isMissingMountedSignal() {
+        return !MountUtils.isMounted() || !hasMountEnergyBar();
     }
 
     private static void tick() {
         MinecraftClient client = WTZClient.client();
         ClientPlayerEntity player = WTZClient.player();
-        if (player == null) return;
-        if (!WTZClient.CONFIG.mountStatsAutoUpdate) {
-            state = State.IDLE;
+        if (player == null) {
+            resetMountEnergyGlyph();
             return;
         }
+        if (!MountUtils.isMounted()) {
+            resetMountEnergyGlyph();
+        }
+        if (!WTZClient.CONFIG.mountStatsAutoUpdate) {
+            state = State.IDLE;
+            pendingEnergyUpdateTicks = -1;
+            return;
+        }
+
+        tickPendingEnergyUpdate();
 
         switch (state) {
             case WAITING -> {
@@ -107,6 +131,27 @@ public class MountStatsUpdater {
 
     private static void closeHandledScreen(ClientPlayerEntity player) {
         player.closeHandledScreen();
+        QualityOfLife.scheduleMacOSMovementKeyFix();
+    }
+
+    private static void scheduleUpdate() {
+        if (state != State.IDLE) return;
+
+        waitTicks = WAIT_DELAY;
+        state = State.WAITING;
+    }
+
+    private static void tickPendingEnergyUpdate() {
+        if (pendingEnergyUpdateTicks < 0) return;
+        if (isMissingMountedSignal()) {
+            pendingEnergyUpdateTicks = -1;
+            return;
+        }
+
+        if (pendingEnergyUpdateTicks-- > 0) return;
+
+        pendingEnergyUpdateTicks = -1;
+        scheduleUpdate();
     }
 
     private static void extractPillText(Text text, StringBuilder sb) {
@@ -117,6 +162,54 @@ public class MountStatsUpdater {
         for (Text sibling : text.getSiblings()) {
             extractPillText(sibling, sb);
         }
+    }
+
+    private static String mountEnergySignature(Text text) {
+        StringBuilder signature = new StringBuilder();
+        appendMountEnergyGlyphs(text, signature);
+        return signature.toString();
+    }
+
+    private static void appendMountEnergyGlyphs(Text text, StringBuilder signature) {
+        String font = text.getStyle().getFont().toString();
+        if (font.contains(MOUNT_ENERGY_FONT_FRAGMENT)) {
+            text.getString().codePoints()
+                    .filter(MountStatsUpdater::isMountEnergyGlyph)
+                    .forEach(signature::appendCodePoint);
+        }
+
+        for (Text sibling : text.getSiblings()) {
+            appendMountEnergyGlyphs(sibling, signature);
+        }
+    }
+
+    private static boolean isMountEnergyGlyph(int codepoint) {
+        return codepoint >= MOUNT_ENERGY_FULL_GLYPH && codepoint <= MOUNT_ENERGY_EMPTY_GLYPH;
+    }
+
+    private static boolean updateMountEnergySignature(String signature) {
+        currentMountEnergySignature = signature;
+
+        if (signature.isEmpty()) {
+            lastMountEnergySignature = "";
+            return false;
+        }
+
+        if (lastMountEnergySignature.isEmpty()) {
+            lastMountEnergySignature = signature;
+            return false;
+        }
+
+        if (signature.equals(lastMountEnergySignature)) return false;
+
+        lastMountEnergySignature = signature;
+        return true;
+    }
+
+    private static void resetMountEnergyGlyph() {
+        currentMountEnergySignature = "";
+        lastMountEnergySignature = "";
+        pendingEnergyUpdateTicks = -1;
     }
 
     private static String decode(String raw) {

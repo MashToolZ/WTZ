@@ -44,11 +44,15 @@ public class WTZConfig implements ConfigData {
     public double mountStatsDragPctX = -1.0;
     public double mountStatsDragPctY = -1.0;
     public float mountStatsDragScale = 1.0f;
+    public boolean mountStatsEditLocked = false;
 
     
     public boolean mountItemOverlayEnabled = false;
     public boolean mountItemOverlayPotentialEnabled = false;
     public boolean mountItemOverlayBarsEnabled = false;
+    public MountItemOverlayModifierKey mountItemOverlayBarsModifierKey = MountItemOverlayModifierKey.NONE;
+    public boolean mountItemOverlayBarsAlwaysShowInHotbar = false;
+    public boolean mountItemOverlaySkinColorsEnabled = false;
     public boolean mountSkinReportingEnabled = false;
 
     
@@ -56,6 +60,7 @@ public class WTZConfig implements ConfigData {
     public boolean qolRightClickBack = false;
     public boolean qolHideActionbarInChat = false;
     public boolean qolActionbarAboveChat = false;
+    public boolean qolMacOSMovementKeyFix = false;
 
     
     public boolean shoppingListEnabled = false;
@@ -69,6 +74,7 @@ public class WTZConfig implements ConfigData {
     
     public boolean mountCameraEnabled = false;
     public boolean mountCameraScrollZoom = false;
+    public float mountCameraZoomDistance = 0.0f;
     public int mountCameraFov = 29;
     public double mountCameraOffsetZ = 4.0;
     public boolean mountCameraAutoPerspective = false;
@@ -87,24 +93,22 @@ public class WTZConfig implements ConfigData {
     public int lookLineColor = 0xFFFFFFFF;
 
     @Override
+    @SuppressWarnings("RedundantThrows")
     public void validatePostLoad() throws ValidationException {
-        mountHelperLabelScale = clamp(mountHelperLabelScale, 0.1f, 2.0f);
-        mountHelperMaxedTimeout = Math.max(0, Math.min(60, mountHelperMaxedTimeout));
-        mountHelperMaxedOpacity = Math.max(0, Math.min(100, mountHelperMaxedOpacity));
-        mountStatsBgOpacity = Math.max(0, Math.min(100, mountStatsBgOpacity));
-        mountStatsDragPctX = mountStatsDragPctX < 0 ? -1.0 : Math.max(0.0, Math.min(100.0, mountStatsDragPctX));
-        mountStatsDragPctY = mountStatsDragPctY < 0 ? -1.0 : Math.max(0.0, Math.min(100.0, mountStatsDragPctY));
-        mountStatsDragScale = clamp(mountStatsDragScale, 0.3f, 2.0f);
-        shoppingListScale = clamp(shoppingListScale, 0.5f, 1.0f);
-        mountCameraFov = Math.max(29, Math.min(110, mountCameraFov));
-        mountCameraOffsetZ = Math.max(-5.0, Math.min(5.0, mountCameraOffsetZ));
-        shoutTTSVolume = Math.max(0, Math.min(100, shoutTTSVolume));
-        lookLineMaxDistance = Math.max(1, Math.min(50, lookLineMaxDistance));
-        lookLineWidth = clamp(lookLineWidth, 0.01f, 0.5f);
-    }
-
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
+        mountHelperLabelScale = Math.clamp(mountHelperLabelScale, 0.1f, 2.0f);
+        mountHelperMaxedTimeout = Math.clamp(mountHelperMaxedTimeout, 0, 60);
+        mountHelperMaxedOpacity = Math.clamp(mountHelperMaxedOpacity, 0, 100);
+        mountStatsBgOpacity = Math.clamp(mountStatsBgOpacity, 0, 100);
+        mountStatsDragPctX = mountStatsDragPctX < 0 ? -1.0 : Math.clamp(mountStatsDragPctX, 0.0, 100.0);
+        mountStatsDragPctY = mountStatsDragPctY < 0 ? -1.0 : Math.clamp(mountStatsDragPctY, 0.0, 100.0);
+        mountStatsDragScale = Math.clamp(mountStatsDragScale, 0.3f, 2.0f);
+        shoppingListScale = Math.clamp(shoppingListScale, 0.5f, 1.0f);
+        mountCameraZoomDistance = Math.clamp(mountCameraZoomDistance, 0.0f, 5.0f);
+        mountCameraFov = Math.clamp(mountCameraFov, 29, 110);
+        mountCameraOffsetZ = Math.clamp(mountCameraOffsetZ, -5.0, 5.0);
+        shoutTTSVolume = Math.clamp(shoutTTSVolume, 0, 100);
+        lookLineMaxDistance = Math.clamp(lookLineMaxDistance, 1, 50);
+        lookLineWidth = Math.clamp(lookLineWidth, 0.01f, 0.5f);
     }
 
     
@@ -196,6 +200,17 @@ public class WTZConfig implements ConfigData {
         mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayBarsEnabled"), c.mountItemOverlayBarsEnabled)
                 .setTooltip(tooltip("mountItemOverlayBarsEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayBarsEnabled = v).build());
+        mountItemOverlay.addEntry(e.startEnumSelector(option("mountItemOverlayBarsModifierKey"), MountItemOverlayModifierKey.class, c.mountItemOverlayBarsModifierKey)
+                .setTooltip(tooltip("mountItemOverlayBarsModifierKey"))
+                .setDefaultValue(MountItemOverlayModifierKey.NONE)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountItemOverlayBarsModifierKey." + v.name()))
+                .setSaveConsumer(v -> c.mountItemOverlayBarsModifierKey = v).build());
+        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayBarsAlwaysShowInHotbar"), c.mountItemOverlayBarsAlwaysShowInHotbar)
+                .setTooltip(tooltip("mountItemOverlayBarsAlwaysShowInHotbar"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayBarsAlwaysShowInHotbar = v).build());
+        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlaySkinColorsEnabled"), c.mountItemOverlaySkinColorsEnabled)
+                .setTooltip(tooltip("mountItemOverlaySkinColorsEnabled"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlaySkinColorsEnabled = v).build());
 
         
         ConfigCategory mountSkinReporting = builder.getOrCreateCategory(category("mountSkinReporting"));
@@ -216,6 +231,9 @@ public class WTZConfig implements ConfigData {
         qol.addEntry(e.startBooleanToggle(option("qolActionbarAboveChat"), c.qolActionbarAboveChat)
                 .setTooltip(tooltip("qolActionbarAboveChat"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.qolActionbarAboveChat = v).build());
+        qol.addEntry(e.startBooleanToggle(option("qolMacOSMovementKeyFix"), c.qolMacOSMovementKeyFix)
+                .setTooltip(tooltip("qolMacOSMovementKeyFix"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.qolMacOSMovementKeyFix = v).build());
 
         
         ConfigCategory shoppingList = builder.getOrCreateCategory(category("shoppingList"));
@@ -303,5 +321,12 @@ public class WTZConfig implements ConfigData {
         public String getId() {
             return id;
         }
+    }
+
+    public enum MountItemOverlayModifierKey {
+        NONE,
+        CTRL,
+        SHIFT,
+        ALT
     }
 }

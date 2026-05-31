@@ -21,7 +21,6 @@ public final class LocalBrowserBridge {
     private static final LocalBrowserBridge INSTANCE = new LocalBrowserBridge();
     private static final int PORT = 38421;
     private static final Set<String> ALLOWED_ORIGINS = Set.of(
-            "https://dev.mashtoolz.xyz",
             "https://wynn.mashtoolz.xyz",
             "http://localhost:3000",
             "http://127.0.0.1:3000"

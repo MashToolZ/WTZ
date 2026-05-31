@@ -4,8 +4,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
@@ -55,6 +53,7 @@ public class MountStatsOverlay {
     private static final int DRAG_BORDER_IDLE = 0x40FF4800;
     private static final int DRAG_BORDER_HOVER = 0x80FF4800;
     private static final int DRAG_BORDER_ACTIVE = 0xC0FF4800;
+    private static final int DRAG_BORDER_LOCKED = 0x80808080;
     private static final int RESIZE_HANDLE_SIZE = 6;
     private static final float MIN_SCALE = 0.3f;
     private static final float MAX_SCALE = 2.0f;
@@ -68,7 +67,8 @@ public class MountStatsOverlay {
     private static final Map<String, Delta> deltas = new HashMap<>();
 
     
-    private static boolean locked = true;
+    private static boolean editMode = false;
+    private static boolean editLocked = false;
 
     
     private static boolean dragging = false;
@@ -81,7 +81,8 @@ public class MountStatsOverlay {
 
     
     private static int lastOverlayX, lastOverlayY, lastOverlayScaledW, lastOverlayScaledH;
-    private static int lastUnscaledW, lastUnscaledH;
+    private static int lastUnscaledW;
+    private static boolean screenOverlayVisible = false;
 
     
 
@@ -154,123 +155,29 @@ public class MountStatsOverlay {
         return new ParsedMount(stats, energyPool, statColors);
     }
 
-    public static void render(DrawContext context, ItemStack stack) {
-        render(context, stack, NO_OUTLINE);
-    }
-
-    public static void render(DrawContext context, ItemStack stack, int outlineColor) {
-        if (stack == null || stack.isEmpty()) return;
-
-        ParsedMount parsed = parseAll(stack);
-        if (parsed.stats.isEmpty()) return;
-
-        String mountName = stack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
-        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor, -1, -1);
-    }
-
     
-
-    public static void renderOnScreen(DrawContext context, int mouseX, int mouseY) {
-        if (!WTZClient.CONFIG.mountStatsEnabled) return;
-
-        ClientPlayerEntity player = WTZClient.player();
-        if (player == null) return;
-
-        boolean mounted = player.hasVehicle();
-        boolean showWhenNotMounted = WTZClient.CONFIG.mountStatsShowWhenNotMounted;
-        if (!mounted && !showWhenNotMounted) return;
-
-        ItemStack displayedStack = getDisplayStack(player, mounted);
-        if (displayedStack == null || displayedStack.isEmpty()) return;
-
-        ParsedMount parsed = parseAll(displayedStack);
-        if (parsed.stats().isEmpty()) return;
-
-        String mountName = displayedStack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
-
-        int outlineColor = NO_OUTLINE;
-        if (mounted && WTZClient.CONFIG.mountStatsTrackHeld) {
-            ItemStack mountedStack = getMountedItem();
-            outlineColor = isSameMount(displayedStack, mountedStack)
-                    ? MOUNTED_OUTLINE_COLOR
-                    : NOT_MOUNTED_OUTLINE_COLOR;
-        }
-
-        long window = WTZClient.client().getWindow().getHandle();
-        boolean mouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-
-        
-        if (dragging && !mouseDown) {
-            int screenW = WTZClient.client().getWindow().getScaledWidth();
-            int screenH = WTZClient.client().getWindow().getScaledHeight();
-            WTZClient.CONFIG.mountStatsDragPctX = screenW > 0 ? (double) dragPosX / screenW * 100.0 : -1.0;
-            WTZClient.CONFIG.mountStatsDragPctY = screenH > 0 ? (double) dragPosY / screenH * 100.0 : -1.0;
-            WTZConfig.save();
-            dragging = false;
-        }
-
-        
-        if (resizing && !mouseDown) {
-            WTZClient.CONFIG.mountStatsDragScale = previewScale;
-            WTZConfig.save();
-            resizing = false;
-        }
-
-        
-        if (dragging) {
-            dragPosX = mouseX - dragOffsetX;
-            dragPosY = mouseY - dragOffsetY;
-            int screenW = WTZClient.client().getWindow().getScaledWidth();
-            int screenH = WTZClient.client().getWindow().getScaledHeight();
-            dragPosX = Math.clamp(dragPosX, 0, Math.max(0, screenW - lastOverlayScaledW));
-            dragPosY = Math.clamp(dragPosY, 0, Math.max(0, screenH - lastOverlayScaledH));
-        }
-
-        
-        if (resizing && lastUnscaledW > 0) {
-            float newScale = (float) (mouseX - lastOverlayX) / lastUnscaledW;
-            previewScale = Math.clamp(newScale, MIN_SCALE, MAX_SCALE);
-        }
-
-        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor, mouseX, mouseY);
-
-        if (!locked) {
-            
-            boolean hovered = isMouseOverOverlay(mouseX, mouseY);
-            int borderColor = (dragging || resizing) ? DRAG_BORDER_ACTIVE : (hovered ? DRAG_BORDER_HOVER : DRAG_BORDER_IDLE);
-            int bx = lastOverlayX, by = lastOverlayY;
-            int bw = lastOverlayScaledW, bh = lastOverlayScaledH;
-            context.fill(bx, by, bx + bw, by + 1, borderColor);
-            context.fill(bx, by + bh - 1, bx + bw, by + bh, borderColor);
-            context.fill(bx, by, bx + 1, by + bh, borderColor);
-            context.fill(bx + bw - 1, by, bx + bw, by + bh, borderColor);
-
-            
-            int handleColor = isOverResizeHandle(mouseX, mouseY) || resizing ? DRAG_BORDER_ACTIVE : DRAG_BORDER_HOVER;
-            int hx = bx + bw;
-            int hy = by + bh;
-            for (int i = 0; i < RESIZE_HANDLE_SIZE; i++) {
-                context.fill(hx - RESIZE_HANDLE_SIZE + i, hy - 1 - i, hx, hy - i, handleColor);
-            }
-        }
-    }
 
     public static boolean onScreenMouseClicked(double mouseX, double mouseY, int button) {
         if (!WTZClient.CONFIG.mountStatsEnabled) return false;
         if (!isMouseOverOverlay(mouseX, mouseY)) return false;
 
-        
+        if (!editMode) return false;
+
         if (button == 1) {
-            locked = !locked;
+            editLocked = !editLocked;
+            WTZClient.CONFIG.mountStatsEditLocked = editLocked;
+            WTZConfig.save();
+            dragging = false;
+            resizing = false;
             return true;
         }
 
-        if (button != 0 || locked) return false;
+        if (button != 0 || editLocked) return false;
 
         
         if (isOverResizeHandle(mouseX, mouseY)) {
-            resizing = true;
             previewScale = getScale();
+            resizing = true;
             return true;
         }
 
@@ -283,8 +190,86 @@ public class MountStatsOverlay {
         return true;
     }
 
+    public static void setEditMode(boolean enabled) {
+        editMode = enabled;
+        if (enabled) {
+            editLocked = WTZClient.CONFIG.mountStatsEditLocked;
+        }
+        if (!enabled) {
+            dragging = false;
+            resizing = false;
+        }
+    }
+
+    public static void updateEditInteraction(int mouseX, int mouseY) {
+        if (!WTZClient.CONFIG.mountStatsEnabled) {
+            hideScreenOverlay();
+            return;
+        }
+        if (!screenOverlayVisible && !dragging && !resizing) return;
+
+        long window = WTZClient.client().getWindow().getHandle();
+        boolean mouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+
+        if (dragging && !mouseDown) {
+            int screenW = WTZClient.client().getWindow().getScaledWidth();
+            int screenH = WTZClient.client().getWindow().getScaledHeight();
+            WTZClient.CONFIG.mountStatsDragPctX = screenW > 0 ? (double) dragPosX / screenW * 100.0 : -1.0;
+            WTZClient.CONFIG.mountStatsDragPctY = screenH > 0 ? (double) dragPosY / screenH * 100.0 : -1.0;
+            WTZConfig.save();
+            dragging = false;
+        }
+
+        if (resizing && !mouseDown) {
+            WTZClient.CONFIG.mountStatsDragScale = previewScale;
+            WTZConfig.save();
+            resizing = false;
+        }
+
+        if (dragging) {
+            dragPosX = mouseX - dragOffsetX;
+            dragPosY = mouseY - dragOffsetY;
+            int screenW = WTZClient.client().getWindow().getScaledWidth();
+            int screenH = WTZClient.client().getWindow().getScaledHeight();
+            dragPosX = Math.clamp(dragPosX, 0, Math.max(0, screenW - lastOverlayScaledW));
+            dragPosY = Math.clamp(dragPosY, 0, Math.max(0, screenH - lastOverlayScaledH));
+        }
+
+        if (resizing && lastUnscaledW > 0) {
+            float newScale = (float) (mouseX - lastOverlayX) / lastUnscaledW;
+            previewScale = Math.clamp(newScale, MIN_SCALE, MAX_SCALE);
+        }
+    }
+
+    public static void renderEditAffordance(DrawContext context, int mouseX, int mouseY) {
+        if (!WTZClient.CONFIG.mountStatsEnabled || !screenOverlayVisible) return;
+
+        context.createNewRootLayer();
+
+        boolean hovered = isMouseOverOverlay(mouseX, mouseY);
+        int borderColor = editLocked
+                ? DRAG_BORDER_LOCKED
+                : ((dragging || resizing) ? DRAG_BORDER_ACTIVE : (hovered ? DRAG_BORDER_HOVER : DRAG_BORDER_IDLE));
+        int bx = lastOverlayX, by = lastOverlayY;
+        int bw = lastOverlayScaledW, bh = lastOverlayScaledH;
+        context.fill(bx, by, bx + bw, by + 1, borderColor);
+        context.fill(bx, by + bh - 1, bx + bw, by + bh, borderColor);
+        context.fill(bx, by, bx + 1, by + bh, borderColor);
+        context.fill(bx + bw - 1, by, bx + bw, by + bh, borderColor);
+
+        int handleColor = editLocked
+                ? DRAG_BORDER_LOCKED
+                : (isOverResizeHandle(mouseX, mouseY) || resizing ? DRAG_BORDER_ACTIVE : DRAG_BORDER_HOVER);
+        int hx = bx + bw;
+        int hy = by + bh;
+        for (int i = 0; i < RESIZE_HANDLE_SIZE; i++) {
+            context.fill(hx - RESIZE_HANDLE_SIZE + i, hy - 1 - i, hx, hy - i, handleColor);
+        }
+    }
+
     public static boolean isMouseOverOverlay(double mouseX, double mouseY) {
         if (!WTZClient.CONFIG.mountStatsEnabled) return false;
+        if (!screenOverlayVisible) return false;
         return mouseX >= lastOverlayX && mouseX < lastOverlayX + lastOverlayScaledW
                 && mouseY >= lastOverlayY && mouseY < lastOverlayY + lastOverlayScaledH;
     }
@@ -296,6 +281,12 @@ public class MountStatsOverlay {
         int hy = lastOverlayY + lastOverlayScaledH;
         return mouseX >= hx - RESIZE_HANDLE_SIZE && mouseX < hx
                 && mouseY >= hy - RESIZE_HANDLE_SIZE && mouseY < hy;
+    }
+
+    private static void hideScreenOverlay() {
+        screenOverlayVisible = false;
+        dragging = false;
+        resizing = false;
     }
 
     private static int getBgColor() {
@@ -324,11 +315,23 @@ public class MountStatsOverlay {
     private static void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
         if (!WTZClient.CONFIG.mountStatsEnabled) return;
 
-        
-        if (WTZClient.client().currentScreen instanceof HandledScreen<?>
-                || WTZClient.client().currentScreen instanceof ChatScreen) {
+        if (!editMode) {
+            hideScreenOverlay();
+        }
+
+        renderCurrentOverlay(context, editMode);
+    }
+
+    public static void renderEditOverlay(DrawContext context) {
+        if (!WTZClient.CONFIG.mountStatsEnabled) {
+            hideScreenOverlay();
             return;
         }
+
+        renderCurrentOverlay(context, true);
+    }
+
+    private static void renderCurrentOverlay(DrawContext context, boolean keepInteractiveBounds) {
 
         ClientPlayerEntity player = WTZClient.player();
         boolean mounted = player != null && player.hasVehicle();
@@ -373,7 +376,8 @@ public class MountStatsOverlay {
         if (parsed.stats().isEmpty()) return;
 
         String mountName = displayedStack.getName().getString().replaceAll("[^\\x20-\\x7E]", "").trim();
-        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor, -1, -1);
+        renderStats(context, mountName, parsed.stats, parsed.energyPool, parsed.statColors, outlineColor);
+        screenOverlayVisible = keepInteractiveBounds;
     }
 
     private static ItemStack getDisplayStack(ClientPlayerEntity player, boolean mounted) {
@@ -446,7 +450,9 @@ public class MountStatsOverlay {
         return new int[]{x, y};
     }
 
-    private static void renderStats(DrawContext context, String mountName, Map<String, int[]> stats, int[] energyPool, Map<String, Integer> statColors, int outlineColor, int screenMouseX, int screenMouseY) {
+    private static void renderStats(DrawContext context, String mountName, Map<String, int[]> stats, int[] energyPool, Map<String, Integer> statColors, int outlineColor) {
+        context.createNewRootLayer();
+
         TextRenderer textRenderer = WTZClient.client().textRenderer;
         int screenWidth = WTZClient.client().getWindow().getScaledWidth();
         int screenHeight = WTZClient.client().getWindow().getScaledHeight();
@@ -505,7 +511,6 @@ public class MountStatsOverlay {
         lastOverlayScaledW = scaledBoxWidth;
         lastOverlayScaledH = scaledBoxHeight;
         lastUnscaledW = boxWidth;
-        lastUnscaledH = boxHeight;
 
         context.getMatrices().pushMatrix();
         context.getMatrices().translate(x, y);

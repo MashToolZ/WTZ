@@ -23,6 +23,7 @@ import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
 @Mixin(HandledScreen.class)
+@SuppressWarnings({"DataFlowIssue"})
 public abstract class HandledScreenMixin extends Screen {
 
     protected HandledScreenMixin(Text title) {
@@ -65,6 +66,7 @@ public abstract class HandledScreenMixin extends Screen {
 
     @Inject(method = "close", at = @At("HEAD"))
     private void WTZ_onClose(CallbackInfo ci) {
+        QualityOfLife.onHandledScreenCloseStarted();
         ShoppingListRenderer.getInstance().onScreenClosed((HandledScreen<?>) (Object) this);
         EnclosureScanner.onScreenClose((HandledScreen<?>) (Object) this);
     }

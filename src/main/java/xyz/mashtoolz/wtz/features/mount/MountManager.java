@@ -37,10 +37,6 @@ public class MountManager {
     private static volatile long lastFetchTime = 0;
     private static long lastNonMaxedSeenTime = 0;
 
-    public static List<Powerup> getPowerups() {
-        return powerups;
-    }
-
     public static List<Powerup> getFilteredPowerups() {
         return filteredPowerups;
     }
@@ -123,6 +119,7 @@ public class MountManager {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            MountSkinColors.updateFromPayload(response.body());
 
             List<PowerupEntry> entries = parseMountEntries(response.body());
 
@@ -140,9 +137,9 @@ public class MountManager {
 
             powerupDataMap = parsed;
         } catch (Exception e) {
-            LOGGER.warn("Failed to fetch powerup data", e);
+            LOGGER.warn("Failed to fetch mount data", e);
             WTZClient.client().execute(() ->
-                    ChatHelper.sendError("Failed to fetch powerup data")
+                    ChatHelper.sendError("Failed to fetch mount data")
             );
         }
     }
@@ -157,7 +154,10 @@ public class MountManager {
         for (DisplayEntity.ItemDisplayEntity entity : player.getEntityWorld().getEntitiesByClass(
                 DisplayEntity.ItemDisplayEntity.class, searchBox, e -> true)) {
 
-            ItemStack stack = entity.getStackReference(0).get();
+            var stackReference = entity.getStackReference(0);
+            if (stackReference == null) continue;
+
+            ItemStack stack = stackReference.get();
             if (stack.isEmpty() || !stack.isOf(Items.OAK_BOAT)) continue;
 
             CustomModelDataComponent modelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
@@ -178,8 +178,9 @@ public class MountManager {
         for (List<PowerupData> group : groups.values()) {
             if (group.size() < 2) continue;
 
-            PowerupData typeEntity = group.stream().min(Comparator.comparingInt(d -> d.floatValue)).orElse(null);
-            if (typeEntity == null) continue;
+            PowerupData typeEntity = group.stream()
+                    .min(Comparator.comparingInt(d -> d.floatValue))
+                    .orElseThrow();
 
             PowerupDataEntry data = powerupDataMap.get(typeEntity.floatValue);
             if (data == null) continue;
@@ -220,15 +221,12 @@ public class MountManager {
 
         if (!root.isJsonObject()) return List.of();
         JsonObject obj = root.getAsJsonObject();
-        JsonArray colors = obj.has("colors") && obj.get("colors").isJsonArray()
-                ? obj.getAsJsonArray("colors")
+        JsonArray powerups = obj.has("powerups") && obj.get("powerups").isJsonArray()
+                ? obj.getAsJsonArray("powerups")
                 : null;
 
-        if (colors == null) {
-            return gson.fromJson(root, new TypeToken<List<PowerupEntry>>() {
-            }.getType());
-        }
-        return gson.fromJson(colors, new TypeToken<List<PowerupEntry>>() {
+        JsonElement entries = powerups == null ? root : powerups;
+        return gson.fromJson(entries, new TypeToken<List<PowerupEntry>>() {
         }.getType());
     }
 

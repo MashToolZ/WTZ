@@ -5,6 +5,7 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.item.ItemStack;
 import xyz.mashtoolz.wtz.client.WTZClient;
+import xyz.mashtoolz.wtz.config.WTZConfig;
 
 public class MountCamera {
 
@@ -20,7 +21,7 @@ public class MountCamera {
     private float pitchOffset = 0;
     private boolean freeLooking = false;
     private boolean returning = false;
-    private float zoomDistance = DEFAULT_ZOOM;
+    private Float zoomDistance = null;
 
     private enum State {
         IDLE,
@@ -161,15 +162,24 @@ public class MountCamera {
 
     public void onScroll(double amount) {
         if (!isActive()) return;
-        zoomDistance = Math.clamp(zoomDistance - (float) amount * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM);
+        setZoomDistance(Math.clamp(getZoomDistance() - (float) amount * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM));
     }
 
     public void resetZoom() {
-        if (isActive()) zoomDistance = DEFAULT_ZOOM;
+        if (isActive()) setZoomDistance(DEFAULT_ZOOM);
     }
 
     public float getZoomDistance() {
+        if (zoomDistance == null) {
+            zoomDistance = Math.clamp(WTZClient.CONFIG.mountCameraZoomDistance, MIN_ZOOM, MAX_ZOOM);
+        }
         return zoomDistance;
+    }
+
+    private void setZoomDistance(float value) {
+        zoomDistance = value;
+        WTZClient.CONFIG.mountCameraZoomDistance = value;
+        WTZConfig.save();
     }
 
     public float getYawOffset() {
