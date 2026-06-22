@@ -1,11 +1,15 @@
 package xyz.mashtoolz.wtz.util;
 
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import xyz.mashtoolz.wtz.client.WTZClient;
+
+import java.net.URI;
 
 public class ChatHelper {
 
@@ -38,5 +42,31 @@ public class ChatHelper {
 
     public static void sendInfo(String message) {
         send(message, 0xAAAAAA);
+    }
+
+    public static void sendLink(String message, String label, String url, int color) {
+        ClientPlayerEntity player = WTZClient.player();
+        if (player == null) return;
+        MutableText text = prefix()
+                .append(Text.literal(message).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(color))))
+                .append(Text.literal(" "))
+                .append(Text.literal(label).setStyle(Style.EMPTY
+                        .withColor(TextColor.fromRgb(0x55AAFF))
+                        .withUnderline(true)
+                        .withClickEvent(new ClickEvent.OpenUrl(URI.create(url)))
+                        .withHoverEvent(new HoverEvent.ShowText(Text.literal(url)))));
+        player.sendMessage(text, false);
+    }
+
+    public static void send(MutableText message) {
+        ClientPlayerEntity player = WTZClient.player();
+        if (player == null) return;
+        player.sendMessage(prefix().append(message), false);
+    }
+
+    public static void sendBlank() {
+        ClientPlayerEntity player = WTZClient.player();
+        if (player == null) return;
+        player.sendMessage(Text.empty(), false);
     }
 }

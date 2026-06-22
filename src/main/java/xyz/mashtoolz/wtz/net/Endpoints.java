@@ -7,6 +7,7 @@ public final class Endpoints {
     public static final String MOUNT_DATA_URL = apiBaseUrl() + "/api/mount/data";
     public static final String MOUNT_SUBMIT_URL = apiBaseUrl() + "/api/mount/submit";
     public static final String AUTH_LINK_URL = apiBaseUrl() + "/auth/discord";
+    public static final String SHOPPING_LIST_CACHE_MANIFEST_URL = apiBaseUrl() + "/cache/items/shopping-list-cache-manifest.json";
     public static final String MOD_LINK_URL = modLinkUrl();
 
     private Endpoints() {

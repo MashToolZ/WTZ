@@ -12,9 +12,10 @@ import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import xyz.mashtoolz.wtz.features.mount.MountItemOverlay;
-import xyz.mashtoolz.wtz.features.mount.MountStatsUpdater;
+import xyz.mashtoolz.wtz.features.mount.stats.MountStatsUpdater;
 import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
@@ -27,9 +28,10 @@ public class InGameHudMixin {
         MountItemOverlay.renderHotbarItemOverlay(context, x, y, stack);
     }
 
-    @Inject(method = "setOverlayMessage", at = @At("HEAD"))
-    private void WTZ_onSetOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
+    @ModifyVariable(method = "setOverlayMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private Text WTZ_filterOverlayMessage(Text message) {
         MountStatsUpdater.onActionBar(message);
+        return MountStatsUpdater.withHiddenVanillaMountEnergyBar(message);
     }
 
     @Inject(method = "renderOverlayMessage", at = @At("HEAD"), cancellable = true)

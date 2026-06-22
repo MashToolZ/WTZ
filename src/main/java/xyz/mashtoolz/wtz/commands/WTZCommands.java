@@ -2,11 +2,13 @@ package xyz.mashtoolz.wtz.commands;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.minecraft.util.Util;
 import xyz.mashtoolz.wtz.auth.LinkStateStore;
+import xyz.mashtoolz.wtz.features.mount.enclosure.BreedingResultReporter;
+import xyz.mashtoolz.wtz.features.mount.skin.MountSkinReporter;
 import xyz.mashtoolz.wtz.net.Endpoints;
 import xyz.mashtoolz.wtz.relay.RelayManager;
 import xyz.mashtoolz.wtz.util.ChatHelper;
+import xyz.mashtoolz.wtz.util.UrlHelper;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
@@ -30,12 +32,6 @@ public final class WTZCommands {
                                     openAuthLink();
                                     return 1;
                                 })
-                                .then(literal("status")
-                                        .executes(context -> {
-                                            showLinkStatus();
-                                            return 1;
-                                        })
-                                )
                                 .then(argument("token", StringArgumentType.word())
                                         .executes(context -> {
                                             String token = StringArgumentType.getString(context, "token");
@@ -50,34 +46,26 @@ public final class WTZCommands {
                                     return 1;
                                 })
                         )
-
         ));
     }
 
     private static void linkWithToken(String rawToken) {
         String token = rawToken == null ? "" : rawToken.trim();
-        if (!STORE.acceptsToken(token)) {
+        if (STORE.rejectsToken(token)) {
             ChatHelper.sendError("Invalid WynnToolZ token.");
             return;
         }
 
         STORE.saveToken(token);
-        ChatHelper.sendSuccess("WynnToolZ token saved.");
-        RelayManager.getInstance().refreshConnection();
-    }
-
-    private static void showLinkStatus() {
-        RelayManager.LinkStatus status = RelayManager.getInstance().linkStatus();
-        if (!status.hasToken()) {
-            ChatHelper.sendWarning("WynnToolZ is not linked. Run /wtz link to open the link page.");
+        if (!STORE.hasToken()) {
+            ChatHelper.sendError("Failed to save Mount API token.");
             return;
         }
 
-        String relay = status.relayConnected() ? "relay connected" : "relay disconnected";
-        String pairing = status.paired()
-                ? "website paired"
-                : status.hasPairingKey() ? "website pairing saved" : "website not paired";
-        ChatHelper.sendSuccess("WynnToolZ is linked: API token saved, " + pairing + ", " + relay + ".");
+        ChatHelper.sendSuccess("Mount API connected");
+        RelayManager.getInstance().refreshConnection();
+        MountSkinReporter.flushQueuedSkins();
+        BreedingResultReporter.flushQueuedReports();
     }
 
     private static void unlink() {
@@ -92,11 +80,10 @@ public final class WTZCommands {
     }
 
     private static void openAuthLink() {
-        try {
-            Util.getOperatingSystem().open(Endpoints.AUTH_LINK_URL);
-            ChatHelper.sendInfo("Opened WynnToolZ authentication in your browser. Copy the shown /wtz link command back into Minecraft.");
-        } catch (Exception ignored) {
-            ChatHelper.sendWarning("Open this URL to get your WynnToolZ API token: " + Endpoints.AUTH_LINK_URL);
-        }
+        UrlHelper.openOrSendFallback(
+                Endpoints.AUTH_LINK_URL,
+                "Automatically opened WynnToolZ in your browser",
+                "If nothing opened, use this link instead:"
+        );
     }
 }

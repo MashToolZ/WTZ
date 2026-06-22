@@ -114,6 +114,14 @@ public class ShoppingListManager {
         save();
     }
 
+    public void renameItem(String listId, String oldName, String newName) {
+        ShoppingListData list = lists.get(listId);
+        if (list == null) return;
+        if (list.renameItem(oldName, newName)) {
+            save();
+        }
+    }
+
     public void clearList(String listId) {
         ShoppingListData list = lists.get(listId);
         if (list == null) return;

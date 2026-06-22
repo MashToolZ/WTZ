@@ -19,6 +19,7 @@ import xyz.mashtoolz.wtz.client.WTZKeybinds;
 import xyz.mashtoolz.wtz.features.mount.EnclosureScanner;
 import xyz.mashtoolz.wtz.features.mount.MountItemOverlay;
 import xyz.mashtoolz.wtz.features.mount.MountUtils;
+import xyz.mashtoolz.wtz.features.mount.bank.MountBankIndexPanel;
 import xyz.mashtoolz.wtz.features.qol.QualityOfLife;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
@@ -80,6 +81,10 @@ public abstract class HandledScreenMixin extends Screen {
     @SuppressWarnings("unused")
     @Inject(method = "isPointOverSlot", at = @At("HEAD"), cancellable = true)
     private void WTZ_blockSlotHoverUnderShoppingList(Slot slot, double pointX, double pointY, CallbackInfoReturnable<Boolean> cir) {
+        if (MountBankIndexPanel.isMouseOver(pointX, pointY)) {
+            cir.setReturnValue(false);
+            return;
+        }
         if (ShoppingListRenderer.getInstance().isMouseOverPanel(pointX, pointY)) {
             cir.setReturnValue(false);
         }
@@ -88,6 +93,10 @@ public abstract class HandledScreenMixin extends Screen {
     @SuppressWarnings("unused")
     @Inject(method = "drawMouseoverTooltip", at = @At("HEAD"), cancellable = true)
     private void WTZ_blockTooltipUnderShoppingList(DrawContext context, int mouseX, int mouseY, CallbackInfo ci) {
+        if (MountBankIndexPanel.isMouseOver(mouseX, mouseY)) {
+            ci.cancel();
+            return;
+        }
         if (ShoppingListRenderer.getInstance().isMouseOverPanel(mouseX, mouseY)) {
             ci.cancel();
         }
@@ -100,6 +109,10 @@ public abstract class HandledScreenMixin extends Screen {
             return;
         }
         HandledScreen<?> handled = (HandledScreen<?>) (Object) this;
+        if (MountBankIndexPanel.onMouseClicked(click.x(), click.y(), click.button())) {
+            cir.setReturnValue(true);
+            return;
+        }
         if (ShoppingListRenderer.getInstance().onMouseClicked(click.x(), click.y(), click.button())) {
             cir.setReturnValue(true);
             return;

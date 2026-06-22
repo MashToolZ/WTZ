@@ -26,11 +26,7 @@ final class MountBankFilterData {
     }
 
     private static String readType(BankFilterContext context) {
-        String name = context.itemName();
-        if (name.contains("Harness")) return "adasaur";
-        if (name.contains("Saddle")) return "horse";
-        if (name.contains("Reins")) return "wyvern";
-        return null;
+        return MountUtils.extractMountType(context.itemName());
     }
 
     private static MountSkin skin(BankFilterContext context) {
@@ -38,20 +34,17 @@ final class MountBankFilterData {
     }
 
     private static MountSkin readSkin(BankFilterContext context) {
+        if (!MountUtils.isMountSkinItemName(context.itemName())) return null;
+
         LoreComponent lore = context.lore();
         if (lore == null) return null;
 
         String skin = MountUtils.extractSkin(lore.lines());
         if (skin == null) return null;
 
-        String[] parts = skin.split("-", 2);
-        if (parts.length != 2) return null;
-
-        String primary = parts[0].trim();
-        String secondary = parts[1].trim();
-        if (primary.isEmpty() || secondary.isEmpty()) return null;
-
-        return new MountSkin(primary, secondary);
+        MountUtils.MountSkinParts parts = MountUtils.parseSkinParts(skin);
+        if (parts == null) return null;
+        return new MountSkin(parts.primary(), parts.secondary());
     }
 
     private record MountSkin(String primary, String secondary) {

@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import xyz.mashtoolz.wtz.features.mount.bank.MountBankIndexPanel;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
 @Mixin(Screen.class)
@@ -23,5 +24,8 @@ public class ScreenTopLayerMixin {
             ShoppingListRenderer.getInstance().autoOpenForScreen(handledScreen);
         }
         ShoppingListRenderer.getInstance().render(context, mouseX, mouseY);
+        if (screen instanceof HandledScreen<?> handledScreen) {
+            MountBankIndexPanel.render(context, handledScreen, mouseX, mouseY);
+        }
     }
 }

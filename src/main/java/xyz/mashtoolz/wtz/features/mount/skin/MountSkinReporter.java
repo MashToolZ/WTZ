@@ -1,28 +1,23 @@
-package xyz.mashtoolz.wtz.features.mount;
+package xyz.mashtoolz.wtz.features.mount.skin;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import xyz.mashtoolz.wtz.auth.LinkStateStore;
 import xyz.mashtoolz.wtz.client.WTZClient;
-import xyz.mashtoolz.wtz.features.mount.skin.MountSkinQueue;
-import xyz.mashtoolz.wtz.features.mount.skin.MountSkinSubmitter;
+import xyz.mashtoolz.wtz.features.mount.MountUtils;
 import xyz.mashtoolz.wtz.util.ChatHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public final class MountSkinReporter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("WTZ-MountSkinReporter");
-    private static final Set<String> MOUNT_KEYWORDS = Set.of("Reins", "Saddle", "Harness");
     private static final int PURCHASE_SCAN_TICKS = 40;
     private static final int PURCHASE_FLUSH_DEBOUNCE_TICKS = 10;
     private static final int MAX_SKINS_PER_BATCH = 30;
@@ -54,23 +49,16 @@ public final class MountSkinReporter {
         if (!WTZClient.CONFIG.mountSkinReportingEnabled) return;
         if (readToken().isPresent()) {
             flushQueuedSkins();
-            return;
         }
-        warnMissingToken();
     }
 
     public static void onGameMessage(Text message) {
-        if (!WTZClient.CONFIG.mountSkinReportingEnabled) return;
         String text = message.getString();
         if (text.contains("Mount Merchant") && text.contains("Thank you for your business"))
             onMerchantPurchase();
     }
 
     private static void tick(MinecraftClient client) {
-        if (!WTZClient.CONFIG.mountSkinReportingEnabled) {
-            clearPurchaseScan();
-            return;
-        }
         if (client.player == null) return;
 
         if (ticksRemaining <= 0 || inventorySnapshot == null) {
@@ -170,6 +158,7 @@ public final class MountSkinReporter {
     }
 
     private static void tickQueueRetry() {
+        if (!WTZClient.CONFIG.mountSkinReportingEnabled) return;
         if (queuePostInFlight || !hasQueuedSkins()) return;
         if (retryTicksRemaining > 0) {
             retryTicksRemaining--;
@@ -180,7 +169,8 @@ public final class MountSkinReporter {
         flushQueuedSkins();
     }
 
-    private static void flushQueuedSkins() {
+    public static void flushQueuedSkins() {
+        if (!WTZClient.CONFIG.mountSkinReportingEnabled) return;
         if (queuePostInFlight) return;
 
         Optional<String> token = readToken();
@@ -237,17 +227,11 @@ public final class MountSkinReporter {
     }
 
     private static boolean isMountItem(ItemStack stack) {
-        String name = stack.getName().getString();
-        for (String keyword : MOUNT_KEYWORDS) {
-            if (name.contains(keyword)) return true;
-        }
-        return false;
+        return MountUtils.isMountSkinItem(stack);
     }
 
     private static String extractSkin(ItemStack stack) {
-        LoreComponent lore = stack.get(DataComponentTypes.LORE);
-        if (lore == null) return null;
-        return MountUtils.extractSkin(lore.lines());
+        return MountUtils.extractSkin(stack);
     }
 
     private static Optional<String> readToken() {

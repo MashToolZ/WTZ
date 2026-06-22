@@ -18,7 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class ShoutTTS {
@@ -40,6 +43,9 @@ public class ShoutTTS {
     private static volatile SourceDataLine activeLine = null;
     private static String lastMessage = "";
     private static long lastMessageTime = 0;
+    private static final Queue<SpeechRequest> speechQueue = new ConcurrentLinkedQueue<>();
+    private static final AtomicBoolean queueRunning = new AtomicBoolean(false);
+    private static final AtomicBoolean skipCurrent = new AtomicBoolean(false);
 
     public static void onTokenChanged() {
         workingUrl = null;
@@ -98,17 +104,45 @@ public class ShoutTTS {
         lastMessage = text;
         lastMessageTime = now;
 
-        String finalText = text;
-        CompletableFuture.runAsync(() -> speak(finalText));
+        enqueueSpeech(new SpeechRequest(text, null));
     }
 
     public static void previewVoice() {
         TTSVoice voice = WTZClient.CONFIG.shoutTTSVoice;
         if (voice == TTSVoice.RANDOM) return;
-        CompletableFuture.runAsync(() -> speak("I love Wynncraft", voice.getId()));
+        enqueueSpeech(new SpeechRequest("I love Wynncraft", voice.getId()));
     }
 
-    private static void speak(String text) {
+    private static void enqueueSpeech(SpeechRequest request) {
+        speechQueue.add(request);
+        startQueueWorker();
+    }
+
+    private static void startQueueWorker() {
+        if (!queueRunning.compareAndSet(false, true)) return;
+        CompletableFuture.runAsync(ShoutTTS::drainQueue);
+    }
+
+    private static void drainQueue() {
+        try {
+            SpeechRequest request;
+            while ((request = speechQueue.poll()) != null) {
+                skipCurrent.set(false);
+                if (request.voice() == null) {
+                    speakNow(request.text());
+                } else {
+                    speakNow(request.text(), request.voice());
+                }
+            }
+        } finally {
+            queueRunning.set(false);
+            if (!speechQueue.isEmpty()) {
+                startQueueWorker();
+            }
+        }
+    }
+
+    private static void speakNow(String text) {
         TTSVoice configVoice = WTZClient.CONFIG.shoutTTSVoice;
         String voice;
         if (configVoice == TTSVoice.RANDOM) {
@@ -117,10 +151,10 @@ public class ShoutTTS {
         } else {
             voice = configVoice.getId();
         }
-        speak(text, voice);
+        speakNow(text, voice);
     }
 
-    private static void speak(String text, String voice) {
+    private static void speakNow(String text, String voice) {
         try {
             if (workingUrl == null) {
                 logInvalidSession();
@@ -159,6 +193,8 @@ public class ShoutTTS {
             String b64 = json.getAsJsonObject("data").get("v_str").getAsString();
             byte[] mp3Bytes = Base64.getDecoder().decode(b64);
 
+            if (skipCurrent.getAndSet(false)) return;
+
             playAudio(mp3Bytes);
         } catch (Exception e) {
             logInvalidSession();
@@ -171,6 +207,10 @@ public class ShoutTTS {
     }
 
     public static void stopPlayback() {
+        if (queueRunning.get()) {
+            skipCurrent.set(true);
+        }
+
         SourceDataLine line = activeLine;
         if (line != null) {
             line.stop();
@@ -183,8 +223,6 @@ public class ShoutTTS {
         try {
             float volume = getVolume();
             if (volume <= 0) return;
-
-            stopPlayback();
 
             Bitstream bitstream = new Bitstream(new ByteArrayInputStream(mp3Bytes));
             Decoder decoder = new Decoder();
@@ -232,12 +270,10 @@ public class ShoutTTS {
         }
     }
 
-    private static void log(String message) {
-        WTZClient.client().execute(() -> ChatHelper.sendInfo(message));
+    private static void logInvalidSession() {
+        WTZClient.client().execute(() -> ChatHelper.sendInfo("Shout TTS: Invalid session ID — relog to fix"));
     }
 
-    private static void logInvalidSession() {
-        log("Shout TTS: Invalid session ID — relog to fix");
+    private record SpeechRequest(String text, String voice) {
     }
 }
-

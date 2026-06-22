@@ -9,9 +9,9 @@ import org.lwjgl.glfw.GLFW;
 import xyz.mashtoolz.wtz.config.WTZConfig;
 import xyz.mashtoolz.wtz.features.tts.ShoutTTS;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
-import xyz.mashtoolz.wtz.features.mount.MountHelper;
+import xyz.mashtoolz.wtz.features.mount.helper.MountHelper;
 import xyz.mashtoolz.wtz.features.mount.MountUtils;
-import xyz.mashtoolz.wtz.screen.OverlayEditScreen;
+import xyz.mashtoolz.wtz.features.overlay.OverlayEditScreen;
 
 import java.util.ArrayList;
 import java.util.List;

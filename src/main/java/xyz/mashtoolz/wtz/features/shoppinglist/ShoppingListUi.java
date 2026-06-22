@@ -5,7 +5,7 @@ import net.minecraft.client.gui.DrawContext;
 
 final class ShoppingListUi {
 
-    static final int PANEL_WIDTH = 230;
+    static final int PANEL_WIDTH = 246;
     static final int MAX_VISIBLE_ROWS = 12;
 
     static final int OUTLINE_DARK = 0xFF080808;
@@ -48,23 +48,25 @@ final class ShoppingListUi {
     static final int FOOTER_BUTTON_GAP = 4;
     static final int DROPDOWN_ROW_HEIGHT = 12;
 
-    static final int ITEM_NAME_X = PADDING + 6;
-    static final int ITEM_NAME_WIDTH = 108;
-    static final int QTY_X = 126;
-    static final int QTY_WIDTH = 34;
-    static final int HAVE_X = 170;
+    static final int ITEM_ICON_X = PADDING + 6;
+    static final int ITEM_NAME_X = PADDING + 24;
+    static final int ITEM_NAME_WIDTH = 104;
+    static final int QTY_X = 134;
+    static final int QTY_STEP_BUTTON_WIDTH = 10;
+    static final int QTY_INPUT_WIDTH = 28;
+    static final int QTY_WIDTH = QTY_STEP_BUTTON_WIDTH * 2 + QTY_INPUT_WIDTH;
+    static final int HAVE_X = 184;
     static final int HAVE_WIDTH = 50;
 
-    static final String[] TITLE_BUTTON_LABELS = {"Ren", "+", "Del", "X"};
+    static final String[] TITLE_BUTTON_LABELS = {"New", "Delete", "X"};
     static final String[] TITLE_BUTTON_TOOLTIPS = {
-            "Rename this list",
             "Create a new list",
             "Delete this list",
             "Close this panel"
     };
     static final String[] FOOTER_BUTTON_LABELS = {"Clear", "Export", "Import"};
 
-    static final int SLIDER_HANDLE_WIDTH = 4;
+    static final int RESIZE_HANDLE_SIZE = 8;
     static final float MIN_SCALE = 0.5f;
     static final float MAX_SCALE = 1.0f;
 

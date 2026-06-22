@@ -16,10 +16,6 @@ public class ChatHudMixin {
 
     @Inject(method = "addMessage(Lnet/minecraft/text/Text;)V", at = @At("HEAD"), cancellable = true)
     private void WTZ_onAddMessage(Text message, CallbackInfo ci) {
-        if (WTZ$isWelcomeMessage(message)) {
-            WTZClient.onWynncraftJoin();
-        }
-
         if (QualityOfLife.trySellAll(message.getString())) {
             ci.cancel();
             return;
@@ -33,6 +29,13 @@ public class ChatHudMixin {
             return;
         }
         ShoutTTS.trySpeak(message.getString());
+    }
+
+    @Inject(method = "addMessage(Lnet/minecraft/text/Text;)V", at = @At("TAIL"))
+    private void WTZ_afterAddMessage(Text message, CallbackInfo ci) {
+        if (WTZ$isWelcomeMessage(message)) {
+            WTZClient.onWynncraftJoin();
+        }
     }
 
     @Unique

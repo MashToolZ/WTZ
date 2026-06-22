@@ -6,6 +6,7 @@ import net.minecraft.client.option.Perspective;
 import net.minecraft.item.ItemStack;
 import xyz.mashtoolz.wtz.client.WTZClient;
 import xyz.mashtoolz.wtz.config.WTZConfig;
+import xyz.mashtoolz.wtz.features.mount.stats.MountStatsOverlay;
 
 public class MountCamera {
 
@@ -13,7 +14,7 @@ public class MountCamera {
     private static final float RETURN_SPEED = 0.15f;
     private static final float SNAP_THRESHOLD = 0.5f;
     private static final float MIN_ZOOM = 0.0f;
-    private static final float MAX_ZOOM = 5.0f;
+    private static final float MAX_ZOOM = 15.0f;
     private static final float ZOOM_STEP = 0.5f;
     private static final float DEFAULT_ZOOM = 0.0f;
 

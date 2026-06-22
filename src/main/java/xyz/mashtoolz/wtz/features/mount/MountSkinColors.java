@@ -68,11 +68,6 @@ public final class MountSkinColors {
             return;
         }
 
-        for (String key : new String[]{"skinColors", "mountSkinColors"}) {
-            JsonElement child = obj.get(key);
-            if (child != null) readColorEntries(child, out);
-        }
-
         JsonElement skins = obj.get("skins");
         if (skins != null) readColorEntries(skins, out);
     }

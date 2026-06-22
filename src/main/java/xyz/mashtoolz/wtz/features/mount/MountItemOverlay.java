@@ -6,12 +6,9 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.util.InputUtil;
 import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
+import xyz.mashtoolz.wtz.enums.GUI;
 import xyz.mashtoolz.wtz.util.ColorUtils;
 import xyz.mashtoolz.wtz.util.ScreenUtils;
 import xyz.mashtoolz.wtz.client.WTZClient;
@@ -38,17 +35,21 @@ public class MountItemOverlay {
 
     public static void renderSkinOverlay(DrawContext context, Slot slot) {
         if (!WTZClient.CONFIG.mountItemOverlaySkinColorsEnabled) return;
+        if (!slot.hasStack()) return;
+        if (slot.id != 22) return;
 
         HandledScreen<?> handled = ScreenUtils.currentHandledScreenOrNull();
         if (handled == null) return;
-        if (!isMountSkinWindow(handled)) return;
-        if (slot.id != 22) return;
+        boolean isPurchaseWindow = isMountSkinWindow(handled);
+        boolean isTradeMarket = GUI.TRADE_MARKET.is(handled);
+        if (!isPurchaseWindow && !isTradeMarket) return;
 
-        String skin = extractMountSkin(slot.id);
+        ItemStack stack = slot.getStack();
+        String skin = extractMountSkin(stack);
         if (skin == null) return;
 
         TextRenderer textRenderer = WTZClient.client().textRenderer;
-        String mount = extractMountType(slot.id);
+        String mount = displayMountType(MountUtils.extractMountType(stack));
         List<SkinNameSegment> segments = skinNameSegments(mount, skin);
         int textWidth = skinNameWidth(textRenderer, segments);
         float scale = 0.8f;
@@ -153,10 +154,10 @@ public class MountItemOverlay {
             potential = String.valueOf(totalMax);
             potentialValue = totalMax;
         } else {
-            PotentialInfo info = extractPotentialInfo(stack);
+            MountUtils.MountPotential info = MountUtils.extractPotential(stack);
             if (info == null) return;
-            potential = info.formatted;
-            potentialValue = info.value;
+            potential = info.formatted();
+            potentialValue = info.value();
         }
 
         boolean showBars = WTZClient.CONFIG.mountItemOverlayBarsEnabled && shouldShowStatBars(inventorySlot);
@@ -211,31 +212,6 @@ public class MountItemOverlay {
     private static boolean isKeyPressed(int leftKey, int rightKey) {
         return InputUtil.isKeyPressed(WTZClient.client().getWindow(), leftKey)
                 || InputUtil.isKeyPressed(WTZClient.client().getWindow(), rightKey);
-    }
-
-    private record PotentialInfo(String formatted, double value) {
-    }
-
-    private static PotentialInfo extractPotentialInfo(ItemStack stack) {
-        LoreComponent lore = stack.get(DataComponentTypes.LORE);
-        if (lore == null) return null;
-
-        for (Text line : lore.lines()) {
-            String str = line.getString();
-            Matcher m = MountPatterns.POTENTIAL.matcher(str);
-            if (m.find()) {
-                String raw = m.group(1);
-                String lower = raw.toLowerCase();
-                double value;
-                if (lower.endsWith("k")) {
-                    value = Double.parseDouble(lower.substring(0, lower.length() - 1)) * 1000;
-                } else {
-                    value = Double.parseDouble(lower.replace(",", "."));
-                }
-                return new PotentialInfo(formatPotential(raw), value);
-            }
-        }
-        return null;
     }
 
     private static final int[][] COLOR_STOPS = {
@@ -320,71 +296,17 @@ public class MountItemOverlay {
         context.fill(x, y, x + fill, y + BAR_HEIGHT, color);
     }
 
-    public static String extractMountSkin(int slotId) {
-        HandledScreen<?> handled = ScreenUtils.currentHandledScreenOrNull();
-        if (handled == null) return null;
-
-        ScreenHandler handler = handled.getScreenHandler();
-        if (slotId < 0 || slotId >= handler.slots.size()) return null;
-
-        ItemStack stack = handler.getSlot(slotId).getStack();
-        if (stack.isEmpty()) return null;
-
-        LoreComponent lore = stack.get(DataComponentTypes.LORE);
-        if (lore == null) return null;
-        return MountUtils.extractSkin(lore.lines());
+    public static String extractMountSkin(ItemStack stack) {
+        return MountUtils.extractSkin(stack);
     }
 
-    private static String extractMountType(int slotId) {
-        HandledScreen<?> handled = ScreenUtils.currentHandledScreenOrNull();
-        if (handled == null) return "";
-
-        ScreenHandler handler = handled.getScreenHandler();
-        if (slotId < 0 || slotId >= handler.slots.size()) return "";
-
-        ItemStack stack = handler.getSlot(slotId).getStack();
-        if (stack.isEmpty()) return "";
-
-        String name = stack.getName().getString();
-        if (name.contains("Saddle")) return "Horse";
-        if (name.contains("Reins")) return "Wyvern";
-        if (name.contains("Harness")) return "Adasaur";
-        return "";
-    }
-
-    private static String formatPotential(String raw) {
-        String lower = raw.toLowerCase();
-        if (lower.endsWith("k")) {
-            try {
-                double val = Double.parseDouble(lower.substring(0, lower.length() - 1));
-                long whole = Math.round(val * 1000);
-                if (whole >= 1000 && whole % 1000 == 0) {
-                    return (whole / 1000) + "k";
-                } else if (whole >= 100 && whole % 100 == 0) {
-                    return String.format("%.1fk", whole / 1000.0);
-                }
-                return raw;
-            } catch (NumberFormatException e) {
-                return raw;
-            }
-        }
-
-        try {
-            int val = Integer.parseInt(raw);
-            if (val >= 1000) {
-                double k = val / 1000.0;
-                if (val % 1000 == 0) {
-                    return (val / 1000) + "k";
-                }
-                return String.format("%.1fk", k);
-            }
-            return raw;
-        } catch (NumberFormatException e) {
-            return raw;
-        }
+    private static String displayMountType(String mountType) {
+        if (mountType == null || mountType.isEmpty()) return "";
+        return mountType.substring(0, 1).toUpperCase() + mountType.substring(1);
     }
 
     public static boolean isMountSkinWindow(HandledScreen<?> handled) {
         return ScreenUtils.handledScreenHasTitle(handled, MOUNT_SKIN_WINDOW_TITLE);
     }
+
 }

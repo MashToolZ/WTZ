@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import xyz.mashtoolz.wtz.features.mount.MountCamera;
-import xyz.mashtoolz.wtz.features.mount.MountStatsOverlay;
+import xyz.mashtoolz.wtz.features.mount.stats.MountStatsOverlay;
 import xyz.mashtoolz.wtz.features.shoppinglist.ShoppingListRenderer;
 
 @Mixin(ClientPlayerInteractionManager.class)

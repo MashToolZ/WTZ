@@ -7,7 +7,7 @@ public class ShoppingListData {
 
     public static class ShoppingItem {
 
-        private final String name;
+        private String name;
         private int quantity;
 
         public ShoppingItem(String name, int quantity) {
@@ -17,6 +17,10 @@ public class ShoppingListData {
 
         public String getName() {
             return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
         }
 
         public int getQuantity() {
@@ -62,10 +66,9 @@ public class ShoppingListData {
         this.name = name;
     }
 
-    public boolean addItem(String name, int qty) {
-        if (hasItem(name)) return false;
+    public void addItem(String name, int qty) {
+        if (hasItem(name)) return;
         items.add(new ShoppingItem(name, qty));
-        return true;
     }
 
     public void removeItem(String name) {
@@ -77,6 +80,24 @@ public class ShoppingListData {
             if (item.getName().equals(name)) return item;
         }
         return null;
+    }
+
+    public boolean renameItem(String oldName, String newName) {
+        newName = cleanName(newName);
+        if (newName.isEmpty()) return false;
+        ShoppingItem item = getItem(oldName);
+        if (item == null) return false;
+        if (oldName.equals(newName)) return true;
+
+        ShoppingItem existing = getItem(newName);
+        if (existing != null) {
+            existing.setQuantity(existing.getQuantity() + item.getQuantity());
+            removeItem(oldName);
+            return true;
+        }
+
+        item.setName(newName);
+        return true;
     }
 
     public boolean hasItem(String name) {

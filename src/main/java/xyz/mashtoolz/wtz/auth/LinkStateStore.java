@@ -2,9 +2,9 @@ package xyz.mashtoolz.wtz.auth;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import xyz.mashtoolz.wtz.util.WTZPaths;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -26,7 +26,7 @@ public final class LinkStateStore {
     private final Path stateFilePath;
 
     public LinkStateStore() {
-        this(FabricLoader.getInstance().getConfigDir().resolve("wtz").resolve("link.json"));
+        this(WTZPaths.configFile("link.json"));
     }
 
     public LinkStateStore(Path stateFilePath) {
@@ -53,7 +53,7 @@ public final class LinkStateStore {
 
     public void saveToken(String token) {
         String normalized = token == null ? "" : token.trim();
-        if (!acceptsToken(normalized))
+        if (rejectsToken(normalized))
             throw new IllegalArgumentException("Token must start with wtz_.");
 
         JsonObject state = readState();
@@ -77,8 +77,8 @@ public final class LinkStateStore {
         return loadToken().isPresent();
     }
 
-    public boolean acceptsToken(String value) {
-        return value != null && TOKEN_PATTERN.matcher(value.trim()).matches();
+    public boolean rejectsToken(String value) {
+        return value == null || !TOKEN_PATTERN.matcher(value.trim()).matches();
     }
 
     private Optional<String> readStateValue(String key, Pattern pattern) {

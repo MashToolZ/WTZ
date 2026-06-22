@@ -63,6 +63,8 @@ public class MouseMixin {
     @SuppressWarnings("unused")
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
     private void WTZ_onMouseButton(long window, MouseInput input, int action, CallbackInfo ci) {
+        if (client.currentScreen != null) return;
+
         MountCamera cam = MountCamera.getInstance();
         if (cam.isThirdPersonActive() && WTZClient.CONFIG.mountCameraScrollZoom && input.button() == 2 && action == 1) {
             cam.resetZoom();

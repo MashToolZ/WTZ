@@ -8,7 +8,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import xyz.mashtoolz.wtz.features.mount.EnclosureScanner;
-import xyz.mashtoolz.wtz.features.mount.MountStatsUpdater;
+import xyz.mashtoolz.wtz.features.mount.bank.MountBankIndexer;
+import xyz.mashtoolz.wtz.features.mount.stats.MountStatsUpdater;
 
 @Mixin(ScreenHandler.class)
 public class ScreenHandlerMixin {
@@ -18,6 +19,7 @@ public class ScreenHandlerMixin {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.currentScreen instanceof HandledScreen<?> handled) {
             EnclosureScanner.onSlotsUpdated(handled);
+            MountBankIndexer.onSlotsUpdated(handled);
             MountStatsUpdater.onSlotsUpdated(handled);
         }
     }
@@ -27,6 +29,7 @@ public class ScreenHandlerMixin {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.currentScreen instanceof HandledScreen<?> handled) {
             EnclosureScanner.onSlotChanged(handled);
+            MountBankIndexer.onSlotChanged(handled);
         }
     }
 }

@@ -8,11 +8,19 @@ import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
 @Config(name = "wtz/config")
 public class WTZConfig implements ConfigData {
+
+    public static final double DEFAULT_MOUNT_STATS_DRAG_PCT_X = 74.84;
+    public static final double DEFAULT_MOUNT_STATS_DRAG_PCT_Y = 29.79;
+    public static final double DEFAULT_MOUNT_JUMP_DRAG_PCT_X = 3.91;
+    public static final double DEFAULT_MOUNT_JUMP_DRAG_PCT_Y = 38.05;
+    public static final double DEFAULT_MOUNT_ENERGY_DRAG_PCT_X = 1.25;
+    public static final double DEFAULT_MOUNT_ENERGY_DRAG_PCT_Y = 38.05;
 
     private static ConfigHolder<WTZConfig> holder;
 
@@ -26,7 +34,10 @@ public class WTZConfig implements ConfigData {
     }
 
     public static void save() {
-        if (holder != null) holder.save();
+        if (holder != null) {
+            holder.getConfig().normalizeValues();
+            holder.save();
+        }
     }
 
     
@@ -40,12 +51,27 @@ public class WTZConfig implements ConfigData {
     public boolean mountStatsAutoUpdate = false;
     public boolean mountStatsTrackHeld = false;
     public boolean mountStatsShowWhenNotMounted = false;
-    public int mountStatsBgOpacity = 44;
-    public double mountStatsDragPctX = -1.0;
-    public double mountStatsDragPctY = -1.0;
+    public int mountStatsBgOpacity = 50;
+    public double mountStatsDragPctX = DEFAULT_MOUNT_STATS_DRAG_PCT_X;
+    public double mountStatsDragPctY = DEFAULT_MOUNT_STATS_DRAG_PCT_Y;
     public float mountStatsDragScale = 1.0f;
     public boolean mountStatsEditLocked = false;
-
+    public boolean mountJumpOverlayEnabled = true;
+    public boolean mountJumpAlwaysShow = false;
+    public boolean mountJumpHorizontal = false;
+    public int mountJumpRotation = -1;
+    public double mountJumpDragPctX = DEFAULT_MOUNT_JUMP_DRAG_PCT_X;
+    public double mountJumpDragPctY = DEFAULT_MOUNT_JUMP_DRAG_PCT_Y;
+    public float mountJumpDragScale = 1.0f;
+    public boolean mountJumpEditLocked = false;
+    public boolean mountEnergyOverlayEnabled = true;
+    public boolean mountEnergyHideVanilla = true;
+    public boolean mountEnergyHorizontal = false;
+    public int mountEnergyRotation = -1;
+    public double mountEnergyDragPctX = DEFAULT_MOUNT_ENERGY_DRAG_PCT_X;
+    public double mountEnergyDragPctY = DEFAULT_MOUNT_ENERGY_DRAG_PCT_Y;
+    public float mountEnergyDragScale = 1.0f;
+    public boolean mountEnergyEditLocked = false;
     
     public boolean mountItemOverlayEnabled = false;
     public boolean mountItemOverlayPotentialEnabled = false;
@@ -53,24 +79,23 @@ public class WTZConfig implements ConfigData {
     public MountItemOverlayModifierKey mountItemOverlayBarsModifierKey = MountItemOverlayModifierKey.NONE;
     public boolean mountItemOverlayBarsAlwaysShowInHotbar = false;
     public boolean mountItemOverlaySkinColorsEnabled = false;
-    public boolean mountSkinReportingEnabled = false;
-
+    public boolean mountSkinReportingEnabled = true;
+    public boolean mountBreedReportingEnabled = true;
     
     public boolean qualityOfLifeEnabled = false;
     public boolean qolRightClickBack = false;
     public boolean qolHideActionbarInChat = false;
     public boolean qolActionbarAboveChat = false;
     public boolean qolMacOSMovementKeyFix = false;
-
     
     public boolean shoppingListEnabled = false;
     public boolean shoppingListAutoOpenTradeMarket = false;
     public float shoppingListScale = 1.0f;
+    public double mountBankIndexerPctX = 85.0;
+    public double mountBankIndexerPctY = 12.0;
+    public float mountBankIndexerScale = 1.0f;
     public boolean bankFiltersEnabled = true;
-    public boolean bankFilterMountTypeEnabled = true;
-    public boolean bankFilterMountPrimaryColorEnabled = true;
-    public boolean bankFilterMountSecondaryColorEnabled = true;
-
+    public boolean bankFilterMountFiltersEnabled = true;
     
     public boolean mountCameraEnabled = false;
     public boolean mountCameraScrollZoom = false;
@@ -79,13 +104,11 @@ public class WTZConfig implements ConfigData {
     public double mountCameraOffsetZ = 4.0;
     public boolean mountCameraAutoPerspective = false;
     public boolean mountCameraFreeLook = false;
-
     
     public boolean shoutTTSEnabled = false;
     public String shoutTTSToken = "";
     public int shoutTTSVolume = 40;
     public TTSVoice shoutTTSVoice = TTSVoice.RANDOM;
-
     
     public boolean lookLineEnabled = false;
     public int lookLineMaxDistance = 10;
@@ -95,15 +118,32 @@ public class WTZConfig implements ConfigData {
     @Override
     @SuppressWarnings("RedundantThrows")
     public void validatePostLoad() throws ValidationException {
+        normalizeValues();
+    }
+
+    private void normalizeValues() {
         mountHelperLabelScale = Math.clamp(mountHelperLabelScale, 0.1f, 2.0f);
         mountHelperMaxedTimeout = Math.clamp(mountHelperMaxedTimeout, 0, 60);
         mountHelperMaxedOpacity = Math.clamp(mountHelperMaxedOpacity, 0, 100);
         mountStatsBgOpacity = Math.clamp(mountStatsBgOpacity, 0, 100);
-        mountStatsDragPctX = mountStatsDragPctX < 0 ? -1.0 : Math.clamp(mountStatsDragPctX, 0.0, 100.0);
-        mountStatsDragPctY = mountStatsDragPctY < 0 ? -1.0 : Math.clamp(mountStatsDragPctY, 0.0, 100.0);
-        mountStatsDragScale = Math.clamp(mountStatsDragScale, 0.3f, 2.0f);
+        mountStatsDragPctX = roundOverlayPct(mountStatsDragPctX);
+        mountStatsDragPctY = roundOverlayPct(mountStatsDragPctY);
+        mountStatsDragScale = roundOverlayScale(Math.clamp(mountStatsDragScale, 0.3f, 2.0f));
+        mountJumpRotation = normalizeRotation(mountJumpRotation, mountJumpHorizontal);
+        mountJumpHorizontal = mountJumpRotation % 2 != 0;
+        mountJumpDragPctX = roundOverlayPct(mountJumpDragPctX);
+        mountJumpDragPctY = roundOverlayPct(mountJumpDragPctY);
+        mountJumpDragScale = roundOverlayScale(Math.clamp(mountJumpDragScale, 0.3f, 3.0f));
+        mountEnergyRotation = normalizeRotation(mountEnergyRotation, mountEnergyHorizontal);
+        mountEnergyHorizontal = mountEnergyRotation % 2 != 0;
+        mountEnergyDragPctX = roundOverlayPct(mountEnergyDragPctX);
+        mountEnergyDragPctY = roundOverlayPct(mountEnergyDragPctY);
+        mountEnergyDragScale = roundOverlayScale(Math.clamp(mountEnergyDragScale, 0.3f, 3.0f));
         shoppingListScale = Math.clamp(shoppingListScale, 0.5f, 1.0f);
-        mountCameraZoomDistance = Math.clamp(mountCameraZoomDistance, 0.0f, 5.0f);
+        mountBankIndexerPctX = roundOverlayPct(mountBankIndexerPctX);
+        mountBankIndexerPctY = roundOverlayPct(mountBankIndexerPctY);
+        mountBankIndexerScale = roundOverlayScale(Math.clamp(mountBankIndexerScale, 0.75f, 1.5f));
+        mountCameraZoomDistance = Math.clamp(mountCameraZoomDistance, 0.0f, 15.0f);
         mountCameraFov = Math.clamp(mountCameraFov, 29, 110);
         mountCameraOffsetZ = Math.clamp(mountCameraOffsetZ, -5.0, 5.0);
         shoutTTSVolume = Math.clamp(shoutTTSVolume, 0, 100);
@@ -111,6 +151,18 @@ public class WTZConfig implements ConfigData {
         lookLineWidth = Math.clamp(lookLineWidth, 0.01f, 0.5f);
     }
 
+    private static double roundOverlayPct(double value) {
+        if (value < 0) return -1.0;
+        return Math.round(Math.clamp(value, 0.0, 100.0) * 100.0) / 100.0;
+    }
+
+    private static float roundOverlayScale(float value) {
+        return Math.round(value * 100.0f) / 100.0f;
+    }
+
+    private static int normalizeRotation(int rotation, boolean legacyHorizontal) {
+        return rotation < 0 ? (legacyHorizontal ? 1 : 0) : Math.floorMod(rotation, 4);
+    }
     
 
     private static Text option(String key) {
@@ -133,91 +185,114 @@ public class WTZConfig implements ConfigData {
                 .setSavingRunnable(WTZConfig::save);
         ConfigEntryBuilder e = builder.entryBuilder();
 
-        ConfigCategory mountHelper = builder.getOrCreateCategory(category("mountHelper"));
-        mountHelper.addEntry(e.startBooleanToggle(option("mountHelperEnabled"), c.mountHelperEnabled)
+        ConfigCategory mounts = builder.getOrCreateCategory(category("mounts"));
+        SubCategoryBuilder mountHelper = e.startSubCategory(category("mountHelper"));
+        mountHelper.add(e.startBooleanToggle(option("mountHelperEnabled"), c.mountHelperEnabled)
                 .setTooltip(tooltip("mountHelperEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountHelperEnabled = v).build());
-        mountHelper.addEntry(e.startFloatField(option("mountHelperLabelScale"), c.mountHelperLabelScale)
+        mountHelper.add(e.startFloatField(option("mountHelperLabelScale"), c.mountHelperLabelScale)
                 .setTooltip(tooltip("mountHelperLabelScale"))
                 .setDefaultValue(0.5f).setMin(0.1f).setMax(2.0f).setSaveConsumer(v -> c.mountHelperLabelScale = v).build());
-        mountHelper.addEntry(e.startBooleanToggle(option("mountHelperHideMaxed"), c.mountHelperHideMaxed)
+        mountHelper.add(e.startBooleanToggle(option("mountHelperHideMaxed"), c.mountHelperHideMaxed)
                 .setTooltip(tooltip("mountHelperHideMaxed"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountHelperHideMaxed = v).build());
-        mountHelper.addEntry(e.startIntSlider(option("mountHelperMaxedTimeout"), c.mountHelperMaxedTimeout, 0, 60)
+        mountHelper.add(e.startIntSlider(option("mountHelperMaxedTimeout"), c.mountHelperMaxedTimeout, 0, 60)
                 .setTooltip(tooltip("mountHelperMaxedTimeout"))
                 .setDefaultValue(10).setSaveConsumer(v -> c.mountHelperMaxedTimeout = v).build());
-        mountHelper.addEntry(e.startIntSlider(option("mountHelperMaxedOpacity"), c.mountHelperMaxedOpacity, 0, 100)
+        mountHelper.add(e.startIntSlider(option("mountHelperMaxedOpacity"), c.mountHelperMaxedOpacity, 0, 100)
                 .setTooltip(tooltip("mountHelperMaxedOpacity"))
                 .setDefaultValue(30).setSaveConsumer(v -> c.mountHelperMaxedOpacity = v).build());
-
-        
-        ConfigCategory mountStats = builder.getOrCreateCategory(category("mountStats"));
-        mountStats.addEntry(e.startBooleanToggle(option("mountStatsEnabled"), c.mountStatsEnabled)
+    
+        mounts.addEntry(mountHelper.build());
+        SubCategoryBuilder mountOverlays = e.startSubCategory(category("mountOverlays"));
+        SubCategoryBuilder mountStats = e.startSubCategory(category("mountStats"));
+        mountStats.add(e.startBooleanToggle(option("mountStatsEnabled"), c.mountStatsEnabled)
                 .setTooltip(tooltip("mountStatsEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountStatsEnabled = v).build());
-        mountStats.addEntry(e.startBooleanToggle(option("mountStatsAutoUpdate"), c.mountStatsAutoUpdate)
+        mountStats.add(e.startBooleanToggle(option("mountStatsAutoUpdate"), c.mountStatsAutoUpdate)
                 .setTooltip(tooltip("mountStatsAutoUpdate"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountStatsAutoUpdate = v).build());
-        mountStats.addEntry(e.startBooleanToggle(option("mountStatsTrackHeld"), c.mountStatsTrackHeld)
+        mountStats.add(e.startBooleanToggle(option("mountStatsTrackHeld"), c.mountStatsTrackHeld)
                 .setTooltip(tooltip("mountStatsTrackHeld"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountStatsTrackHeld = v).build());
-        mountStats.addEntry(e.startBooleanToggle(option("mountStatsShowWhenNotMounted"), c.mountStatsShowWhenNotMounted)
+        mountStats.add(e.startBooleanToggle(option("mountStatsShowWhenNotMounted"), c.mountStatsShowWhenNotMounted)
                 .setTooltip(tooltip("mountStatsShowWhenNotMounted"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountStatsShowWhenNotMounted = v).build());
-        mountStats.addEntry(e.startIntSlider(option("mountStatsBgOpacity"), c.mountStatsBgOpacity, 0, 100)
+        mountStats.add(e.startIntSlider(option("mountStatsBgOpacity"), c.mountStatsBgOpacity, 0, 100)
                 .setTooltip(tooltip("mountStatsBgOpacity"))
-                .setDefaultValue(44).setSaveConsumer(v -> c.mountStatsBgOpacity = v).build());
-
-        ConfigCategory mountCamera = builder.getOrCreateCategory(category("mountCamera"));
-        mountCamera.addEntry(e.startBooleanToggle(option("mountCameraEnabled"), c.mountCameraEnabled)
+                .setDefaultValue(50).setSaveConsumer(v -> c.mountStatsBgOpacity = v).build());
+        mountOverlays.add(mountStats.build());
+        SubCategoryBuilder mountEnergyBar = e.startSubCategory(category("mountEnergyBar"));
+        mountEnergyBar.add(e.startBooleanToggle(option("mountEnergyOverlayEnabled"), c.mountEnergyOverlayEnabled)
+                .setTooltip(tooltip("mountEnergyOverlayEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountEnergyOverlayEnabled = v).build());
+        mountEnergyBar.add(e.startBooleanToggle(option("mountEnergyHideVanilla"), c.mountEnergyHideVanilla)
+                .setTooltip(tooltip("mountEnergyHideVanilla"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountEnergyHideVanilla = v).build());
+        mountOverlays.add(mountEnergyBar.build());
+        SubCategoryBuilder mountJumpBar = e.startSubCategory(category("mountJumpBar"));
+        mountJumpBar.add(e.startBooleanToggle(option("mountJumpOverlayEnabled"), c.mountJumpOverlayEnabled)
+                .setTooltip(tooltip("mountJumpOverlayEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountJumpOverlayEnabled = v).build());
+        mountJumpBar.add(e.startBooleanToggle(option("mountJumpAlwaysShow"), c.mountJumpAlwaysShow)
+                .setTooltip(tooltip("mountJumpAlwaysShow"))
+                .setDefaultValue(false).setSaveConsumer(v -> c.mountJumpAlwaysShow = v).build());
+        mountOverlays.add(mountJumpBar.build());
+        SubCategoryBuilder mountCamera = e.startSubCategory(category("mountCamera"));
+        mountCamera.add(e.startBooleanToggle(option("mountCameraEnabled"), c.mountCameraEnabled)
                 .setTooltip(tooltip("mountCameraEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraEnabled = v).build());
-        mountCamera.addEntry(e.startBooleanToggle(option("mountCameraAutoPerspective"), c.mountCameraAutoPerspective)
+        mountCamera.add(e.startBooleanToggle(option("mountCameraAutoPerspective"), c.mountCameraAutoPerspective)
                 .setTooltip(tooltip("mountCameraAutoPerspective"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraAutoPerspective = v).build());
-        mountCamera.addEntry(e.startBooleanToggle(option("mountCameraFreeLook"), c.mountCameraFreeLook)
+        mountCamera.add(e.startBooleanToggle(option("mountCameraFreeLook"), c.mountCameraFreeLook)
                 .setTooltip(tooltip("mountCameraFreeLook"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraFreeLook = v).build());
-        mountCamera.addEntry(e.startBooleanToggle(option("mountCameraScrollZoom"), c.mountCameraScrollZoom)
+        mountCamera.add(e.startBooleanToggle(option("mountCameraScrollZoom"), c.mountCameraScrollZoom)
                 .setTooltip(tooltip("mountCameraScrollZoom"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountCameraScrollZoom = v).build());
-        mountCamera.addEntry(e.startIntSlider(option("mountCameraFov"), c.mountCameraFov, 29, 110)
+        mountCamera.add(e.startIntSlider(option("mountCameraFov"), c.mountCameraFov, 29, 110)
                 .setTooltip(tooltip("mountCameraFov"))
                 .setTextGetter(v -> v == 29 ? Text.literal("Default") : Text.literal(String.valueOf(v)))
                 .setDefaultValue(29).setSaveConsumer(v -> c.mountCameraFov = v).build());
-        mountCamera.addEntry(e.startDoubleField(option("mountCameraOffsetZ"), c.mountCameraOffsetZ)
+        mountCamera.add(e.startDoubleField(option("mountCameraOffsetZ"), c.mountCameraOffsetZ)
                 .setTooltip(tooltip("mountCameraOffsetZ"))
                 .setDefaultValue(4.0).setMin(-5.0).setMax(5.0).setSaveConsumer(v -> c.mountCameraOffsetZ = v).build());
-
-        
-        ConfigCategory mountItemOverlay = builder.getOrCreateCategory(category("mountItemOverlay"));
-        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayEnabled"), c.mountItemOverlayEnabled)
+    
+        mounts.addEntry(mountCamera.build());
+        mounts.addEntry(mountOverlays.build());
+        SubCategoryBuilder mountItemOverlay = e.startSubCategory(category("mountItemOverlay"));
+        mountItemOverlay.add(e.startBooleanToggle(option("mountItemOverlayEnabled"), c.mountItemOverlayEnabled)
                 .setTooltip(tooltip("mountItemOverlayEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayEnabled = v).build());
-        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayPotentialEnabled"), c.mountItemOverlayPotentialEnabled)
+        mountItemOverlay.add(e.startBooleanToggle(option("mountItemOverlayPotentialEnabled"), c.mountItemOverlayPotentialEnabled)
                 .setTooltip(tooltip("mountItemOverlayPotentialEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayPotentialEnabled = v).build());
-        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayBarsEnabled"), c.mountItemOverlayBarsEnabled)
+        mountItemOverlay.add(e.startBooleanToggle(option("mountItemOverlayBarsEnabled"), c.mountItemOverlayBarsEnabled)
                 .setTooltip(tooltip("mountItemOverlayBarsEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayBarsEnabled = v).build());
-        mountItemOverlay.addEntry(e.startEnumSelector(option("mountItemOverlayBarsModifierKey"), MountItemOverlayModifierKey.class, c.mountItemOverlayBarsModifierKey)
+        mountItemOverlay.add(e.startEnumSelector(option("mountItemOverlayBarsModifierKey"), MountItemOverlayModifierKey.class, c.mountItemOverlayBarsModifierKey)
                 .setTooltip(tooltip("mountItemOverlayBarsModifierKey"))
                 .setDefaultValue(MountItemOverlayModifierKey.NONE)
                 .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountItemOverlayBarsModifierKey." + v.name()))
                 .setSaveConsumer(v -> c.mountItemOverlayBarsModifierKey = v).build());
-        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlayBarsAlwaysShowInHotbar"), c.mountItemOverlayBarsAlwaysShowInHotbar)
+        mountItemOverlay.add(e.startBooleanToggle(option("mountItemOverlayBarsAlwaysShowInHotbar"), c.mountItemOverlayBarsAlwaysShowInHotbar)
                 .setTooltip(tooltip("mountItemOverlayBarsAlwaysShowInHotbar"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlayBarsAlwaysShowInHotbar = v).build());
-        mountItemOverlay.addEntry(e.startBooleanToggle(option("mountItemOverlaySkinColorsEnabled"), c.mountItemOverlaySkinColorsEnabled)
+        mountItemOverlay.add(e.startBooleanToggle(option("mountItemOverlaySkinColorsEnabled"), c.mountItemOverlaySkinColorsEnabled)
                 .setTooltip(tooltip("mountItemOverlaySkinColorsEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlaySkinColorsEnabled = v).build());
-
-        
-        ConfigCategory mountSkinReporting = builder.getOrCreateCategory(category("mountSkinReporting"));
-        mountSkinReporting.addEntry(e.startBooleanToggle(option("mountSkinReportingEnabled"), c.mountSkinReportingEnabled)
+    
+        mounts.addEntry(mountItemOverlay.build());
+        SubCategoryBuilder mountReporting = e.startSubCategory(category("mountReporting"));
+        mountReporting.add(e.startBooleanToggle(option("mountSkinReportingEnabled"), c.mountSkinReportingEnabled)
                 .setTooltip(tooltip("mountSkinReportingEnabled"))
-                .setDefaultValue(false).setSaveConsumer(v -> c.mountSkinReportingEnabled = v).build());
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountSkinReportingEnabled = v).build());
+        mountReporting.add(e.startBooleanToggle(option("mountBreedReportingEnabled"), c.mountBreedReportingEnabled)
+                .setTooltip(tooltip("mountBreedReportingEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountBreedReportingEnabled = v).build());
 
+        mounts.addEntry(mountReporting.build());
         ConfigCategory qol = builder.getOrCreateCategory(category("qualityOfLife"));
         qol.addEntry(e.startBooleanToggle(option("qualityOfLifeEnabled"), c.qualityOfLifeEnabled)
                 .setTooltip(tooltip("qualityOfLifeEnabled"))
@@ -234,8 +309,7 @@ public class WTZConfig implements ConfigData {
         qol.addEntry(e.startBooleanToggle(option("qolMacOSMovementKeyFix"), c.qolMacOSMovementKeyFix)
                 .setTooltip(tooltip("qolMacOSMovementKeyFix"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.qolMacOSMovementKeyFix = v).build());
-
-        
+    
         ConfigCategory shoppingList = builder.getOrCreateCategory(category("shoppingList"));
         shoppingList.addEntry(e.startBooleanToggle(option("shoppingListEnabled"), c.shoppingListEnabled)
                 .setTooltip(tooltip("shoppingListEnabled"))
@@ -243,25 +317,15 @@ public class WTZConfig implements ConfigData {
         shoppingList.addEntry(e.startBooleanToggle(option("shoppingListAutoOpenTradeMarket"), c.shoppingListAutoOpenTradeMarket)
                 .setTooltip(tooltip("shoppingListAutoOpenTradeMarket"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.shoppingListAutoOpenTradeMarket = v).build());
-        shoppingList.addEntry(e.startFloatField(option("shoppingListScale"), c.shoppingListScale)
-                .setTooltip(tooltip("shoppingListScale"))
-                .setDefaultValue(1.0f).setMin(0.5f).setMax(1.0f).setSaveConsumer(v -> c.shoppingListScale = v).build());
 
         ConfigCategory bankFilters = builder.getOrCreateCategory(category("bankFilters"));
         bankFilters.addEntry(e.startBooleanToggle(option("bankFiltersEnabled"), c.bankFiltersEnabled)
                 .setTooltip(tooltip("bankFiltersEnabled"))
                 .setDefaultValue(true).setSaveConsumer(v -> c.bankFiltersEnabled = v).build());
-        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountTypeEnabled"), c.bankFilterMountTypeEnabled)
-                .setTooltip(tooltip("bankFilterMountTypeEnabled"))
-                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountTypeEnabled = v).build());
-        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountPrimaryColorEnabled"), c.bankFilterMountPrimaryColorEnabled)
-                .setTooltip(tooltip("bankFilterMountPrimaryColorEnabled"))
-                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountPrimaryColorEnabled = v).build());
-        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountSecondaryColorEnabled"), c.bankFilterMountSecondaryColorEnabled)
-                .setTooltip(tooltip("bankFilterMountSecondaryColorEnabled"))
-                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountSecondaryColorEnabled = v).build());
-
-        
+        bankFilters.addEntry(e.startBooleanToggle(option("bankFilterMountFiltersEnabled"), c.bankFilterMountFiltersEnabled)
+                .setTooltip(tooltip("bankFilterMountFiltersEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.bankFilterMountFiltersEnabled = v).build());
+    
         ConfigCategory shoutTTS = builder.getOrCreateCategory(category("shoutTTS"));
         shoutTTS.addEntry(e.startBooleanToggle(option("shoutTTSEnabled"), c.shoutTTSEnabled)
                 .setTooltip(tooltip("shoutTTSEnabled"))
@@ -277,8 +341,7 @@ public class WTZConfig implements ConfigData {
                 .setDefaultValue(TTSVoice.RANDOM)
                 .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.shoutTTSVoice." + v.name()))
                 .setSaveConsumer(v -> c.shoutTTSVoice = v).build());
-
-        
+    
         ConfigCategory lookLine = builder.getOrCreateCategory(category("lookLine"));
         lookLine.addEntry(e.startBooleanToggle(option("lookLineEnabled"), c.lookLineEnabled)
                 .setTooltip(tooltip("lookLineEnabled"))

@@ -12,7 +12,7 @@ public final class MountPrimaryColorBankFilter implements BankFilter {
 
     @Override
     public boolean isEnabled(WTZConfig config) {
-        return config.bankFilterMountPrimaryColorEnabled;
+        return config.bankFilterMountFiltersEnabled;
     }
 
     @Override

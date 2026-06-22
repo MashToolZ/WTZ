@@ -5,9 +5,11 @@
   "name": "${mod_name}",
   "description": "",
   "authors": ["Sakurasou"],
-  "contact": {},
+  "contact": {
+    "homepage": "https://modrinth.com/mod/wynntoolz"
+  },
   "license": "All-Rights-Reserved",
-  "icon": "icon.png",
+  "icon": "assets/wtz/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [

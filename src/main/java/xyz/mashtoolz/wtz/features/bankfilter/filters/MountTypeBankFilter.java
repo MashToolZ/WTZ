@@ -12,7 +12,7 @@ public final class MountTypeBankFilter implements BankFilter {
 
     @Override
     public boolean isEnabled(WTZConfig config) {
-        return config.bankFilterMountTypeEnabled;
+        return config.bankFilterMountFiltersEnabled;
     }
 
     @Override
