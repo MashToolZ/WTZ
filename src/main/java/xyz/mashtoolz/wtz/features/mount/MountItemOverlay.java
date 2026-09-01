@@ -17,6 +17,7 @@ import xyz.mashtoolz.wtz.config.WTZConfig.MountItemOverlayModifierKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -120,11 +121,58 @@ public class MountItemOverlay {
 
     public static void renderSlotOverlay(DrawContext context, Slot slot) {
         if (!slot.hasStack()) return;
+        renderMountColorInitials(context, slot.x, slot.y, slot.getStack());
         renderOverlayAt(context, slot.x, slot.y, slot.getStack(), true);
     }
 
     public static void renderHotbarItemOverlay(DrawContext context, int x, int y, ItemStack stack) {
+        renderMountColorInitials(context, x, y, stack);
         renderOverlayAt(context, x, y, stack, false);
+    }
+
+    private static void renderMountColorInitials(DrawContext context, int x, int y, ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return;
+
+        String mountType = MountUtils.extractMountType(stack);
+        if (!isInitialsEnabledForMount(mountType)) return;
+
+        String skin = MountUtils.extractSkin(stack);
+        MountUtils.MountSkinParts parts = MountUtils.parseSkinParts(skin);
+        if (parts == null) return;
+
+        String primaryInitial = colorInitial(parts.primary());
+        String secondaryInitial = colorInitial(parts.secondary());
+        if (primaryInitial.isEmpty() || secondaryInitial.isEmpty()) return;
+
+        String mountName = displayMountType(mountType);
+        int primaryColor = MountSkinColors.colorFor(mountName, "primary", parts.primary(), SKIN_COLOR);
+        int secondaryColor = MountSkinColors.colorFor(mountName, "secondary", parts.secondary(), SKIN_COLOR);
+
+        TextRenderer textRenderer = WTZClient.client().textRenderer;
+        int baselineY = y + 16 - textRenderer.fontHeight;
+        int leftX = x + 1;
+        int rightX = x + 15 - textRenderer.getWidth(secondaryInitial);
+
+        context.drawText(textRenderer, primaryInitial, leftX, baselineY, primaryColor, true);
+        context.drawText(textRenderer, secondaryInitial, rightX, baselineY, secondaryColor, true);
+    }
+
+    private static boolean isInitialsEnabledForMount(String mountType) {
+        if (mountType == null) return false;
+        return switch (mountType.toLowerCase(Locale.ROOT)) {
+            case "horse" -> WTZClient.CONFIG.mountItemOverlayHorseInitialsEnabled;
+            case "wyvern" -> WTZClient.CONFIG.mountItemOverlayWyvernInitialsEnabled;
+            case "adasaur" -> WTZClient.CONFIG.mountItemOverlayAdasaurInitialsEnabled;
+            default -> false;
+        };
+    }
+
+    private static String colorInitial(String value) {
+        if (value == null) return "";
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return "";
+        char c = Character.toUpperCase(trimmed.charAt(0));
+        return String.valueOf(c).toUpperCase(Locale.ROOT);
     }
 
     private static void renderOverlayAt(DrawContext context, int x, int y, ItemStack stack, boolean inventorySlot) {

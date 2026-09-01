@@ -2,18 +2,24 @@ package xyz.mashtoolz.wtz.features.mount.skin;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import xyz.mashtoolz.wtz.features.mount.MountSkinColors;
 import xyz.mashtoolz.wtz.auth.LinkStateStore;
 import xyz.mashtoolz.wtz.client.WTZClient;
 import xyz.mashtoolz.wtz.features.mount.MountUtils;
 import xyz.mashtoolz.wtz.util.ChatHelper;
+import xyz.mashtoolz.wtz.config.WTZConfig;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Locale;
 
 public final class MountSkinReporter {
 
@@ -22,6 +28,9 @@ public final class MountSkinReporter {
     private static final int PURCHASE_FLUSH_DEBOUNCE_TICKS = 10;
     private static final int MAX_SKINS_PER_BATCH = 30;
     private static final int QUEUE_RETRY_INTERVAL_TICKS = 200;
+    private static final int ALERT_STAY_TICKS = 60;
+    private static final TextColor LABEL_COLOR = TextColor.fromRgb(0xD1D1D1);
+    private static final TextColor SEPARATOR_COLOR = TextColor.fromRgb(0xAAAAAA);
 
     private static final LinkStateStore LINK_STORE = new LinkStateStore();
     private static final MountSkinQueue QUEUE = new MountSkinQueue();
@@ -91,6 +100,7 @@ public final class MountSkinReporter {
                     String primary = parts[0].trim();
                     String secondary = parts[1].trim();
                     LOGGER.info("Detected mount skin purchase - {} / {} / {}", itemName, primary, secondary);
+                    maybeShowMountColorAlert(itemName, primary, secondary);
                     enqueueSkin(itemName, primary, secondary);
                     flushTicksRemaining = PURCHASE_FLUSH_DEBOUNCE_TICKS;
                 }
@@ -247,5 +257,83 @@ public final class MountSkinReporter {
             if (client.player == null) return;
             ChatHelper.sendWarning("No WynnToolZ token configured. Run /wtz link to open the link page.");
         });
+    }
+
+    private static void maybeShowMountColorAlert(String itemName, String primary, String secondary) {
+        String mountType = MountUtils.extractMountType(itemName);
+        if (mountType == null) return;
+        if (!isColorAlertEnabledForMount(mountType)) return;
+        if (!matchesPrimaryColor(mountType, primary) || !matchesSecondaryColor(mountType, secondary)) return;
+
+        String mountName = displayMountType(mountType);
+
+        MinecraftClient client = WTZClient.client();
+        client.execute(() -> {
+            if (client.player == null || client.inGameHud == null) return;
+            MutableText pair = coloredPairText(mountName, primary, secondary);
+            MutableText title = Text.empty().append(pair);
+            MutableText chat = Text.literal(mountName + " color: ").setStyle(Style.EMPTY.withColor(LABEL_COLOR))
+                .append(pair);
+            MutableText subtitle = Text.literal(mountName + " found").setStyle(Style.EMPTY.withColor(LABEL_COLOR));
+
+            client.inGameHud.setTitleTicks(0, ALERT_STAY_TICKS, 0);
+            client.inGameHud.setSubtitle(subtitle);
+            client.inGameHud.setTitle(title);
+
+            ChatHelper.send(chat);
+        });
+    }
+
+    private static MutableText coloredPairText(String mount, String primary, String secondary) {
+        int primaryRgb = MountSkinColors.colorFor(mount, "primary", primary, 0xFFFFFFFF) & 0xFFFFFF;
+        int secondaryRgb = MountSkinColors.colorFor(mount, "secondary", secondary, 0xFFFFFFFF) & 0xFFFFFF;
+        return Text.literal(primary.trim()).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(primaryRgb)))
+            .append(Text.literal(" - ").setStyle(Style.EMPTY.withColor(SEPARATOR_COLOR)))
+            .append(Text.literal(secondary.trim()).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(secondaryRgb))));
+    }
+
+    private static boolean isColorAlertEnabledForMount(String mountType) {
+        return switch (mountType.toLowerCase(Locale.ROOT)) {
+            case "horse" -> WTZClient.CONFIG.mountHorseColorAlertsEnabled;
+            case "wyvern" -> WTZClient.CONFIG.mountWyvernColorAlertsEnabled;
+            case "adasaur" -> WTZClient.CONFIG.mountAdasaurColorAlertsEnabled;
+            default -> false;
+        };
+    }
+
+    private static boolean matchesPrimaryColor(String mountType, String primary) {
+        String primaryToken = normalizeColorToken(primary);
+        return switch (mountType.toLowerCase(Locale.ROOT)) {
+            case "horse" -> matchesColorToken(WTZClient.CONFIG.mountHorseAlertPrimaryColor.name(), primaryToken, "Any");
+            case "wyvern" -> matchesColorToken(WTZClient.CONFIG.mountWyvernAlertPrimaryColor.name(), primaryToken, "Any");
+            case "adasaur" -> matchesColorToken(WTZClient.CONFIG.mountAdasaurAlertPrimaryColor.name(), primaryToken, "Any");
+            default -> false;
+        };
+    }
+
+    private static boolean matchesSecondaryColor(String mountType, String secondary) {
+        String secondaryToken = normalizeColorToken(secondary);
+        return switch (mountType.toLowerCase(Locale.ROOT)) {
+            case "horse" -> matchesColorToken(WTZClient.CONFIG.mountHorseAlertSecondaryColor.name(), secondaryToken, "Any");
+            case "wyvern" -> matchesColorToken(WTZClient.CONFIG.mountWyvernAlertSecondaryColor.name(), secondaryToken, "Any");
+            case "adasaur" -> matchesColorToken(WTZClient.CONFIG.mountAdasaurAlertSecondaryColor.name(), secondaryToken, "Any");
+            default -> false;
+        };
+    }
+
+    private static boolean matchesColorToken(String selected, String actual, String anyToken) {
+        return normalizeColorToken(selected).equals(normalizeColorToken(anyToken))
+            || normalizeColorToken(selected).equals(actual);
+    }
+
+    private static String displayMountType(String mountType) {
+        if (mountType == null || mountType.isBlank()) return "Mount";
+        String lower = mountType.toLowerCase(Locale.ROOT);
+        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+    }
+
+    private static String normalizeColorToken(String value) {
+        if (value == null) return "";
+        return value.trim().replace('-', ' ').replaceAll("\\s+", "_").toUpperCase(Locale.ROOT);
     }
 }
