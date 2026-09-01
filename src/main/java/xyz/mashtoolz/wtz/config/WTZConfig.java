@@ -1,4 +1,4 @@
-package xyz.mashtoolz.wtz.config;
+﻿package xyz.mashtoolz.wtz.config;
 
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigData;
@@ -79,8 +79,20 @@ public class WTZConfig implements ConfigData {
     public MountItemOverlayModifierKey mountItemOverlayBarsModifierKey = MountItemOverlayModifierKey.NONE;
     public boolean mountItemOverlayBarsAlwaysShowInHotbar = false;
     public boolean mountItemOverlaySkinColorsEnabled = false;
+    public boolean mountItemOverlayHorseInitialsEnabled = true;
+    public boolean mountItemOverlayWyvernInitialsEnabled = true;
+    public boolean mountItemOverlayAdasaurInitialsEnabled = true;
     public boolean mountSkinReportingEnabled = true;
     public boolean mountBreedReportingEnabled = true;
+    public boolean mountHorseColorAlertsEnabled = true;
+    public MountHorseAlertPrimaryColor mountHorseAlertPrimaryColor = MountHorseAlertPrimaryColor.Any;
+    public MountHorseAlertSecondaryColor mountHorseAlertSecondaryColor = MountHorseAlertSecondaryColor.Any;
+    public boolean mountWyvernColorAlertsEnabled = true;
+    public MountSkinAlertPrimaryColor mountWyvernAlertPrimaryColor = MountSkinAlertPrimaryColor.Any;
+    public MountSkinAlertSecondaryColor mountWyvernAlertSecondaryColor = MountSkinAlertSecondaryColor.Any;
+    public boolean mountAdasaurColorAlertsEnabled = true;
+    public MountAdasaurAlertPrimaryColor mountAdasaurAlertPrimaryColor = MountAdasaurAlertPrimaryColor.Any;
+    public MountAdasaurAlertSecondaryColor mountAdasaurAlertSecondaryColor = MountAdasaurAlertSecondaryColor.Any;
     
     public boolean qualityOfLifeEnabled = false;
     public boolean qolRightClickBack = false;
@@ -282,8 +294,19 @@ public class WTZConfig implements ConfigData {
         mountItemOverlay.add(e.startBooleanToggle(option("mountItemOverlaySkinColorsEnabled"), c.mountItemOverlaySkinColorsEnabled)
                 .setTooltip(tooltip("mountItemOverlaySkinColorsEnabled"))
                 .setDefaultValue(false).setSaveConsumer(v -> c.mountItemOverlaySkinColorsEnabled = v).build());
-    
         mounts.addEntry(mountItemOverlay.build());
+        SubCategoryBuilder mountInitials = e.startSubCategory(category("mountInitials"));
+        mountInitials.add(e.startBooleanToggle(option("mountItemOverlayHorseInitialsEnabled"), c.mountItemOverlayHorseInitialsEnabled)
+                .setTooltip(tooltip("mountItemOverlayHorseInitialsEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountItemOverlayHorseInitialsEnabled = v).build());
+        mountInitials.add(e.startBooleanToggle(option("mountItemOverlayWyvernInitialsEnabled"), c.mountItemOverlayWyvernInitialsEnabled)
+                .setTooltip(tooltip("mountItemOverlayWyvernInitialsEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountItemOverlayWyvernInitialsEnabled = v).build());
+        mountInitials.add(e.startBooleanToggle(option("mountItemOverlayAdasaurInitialsEnabled"), c.mountItemOverlayAdasaurInitialsEnabled)
+                .setTooltip(tooltip("mountItemOverlayAdasaurInitialsEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountItemOverlayAdasaurInitialsEnabled = v).build());
+        mounts.addEntry(mountInitials.build());
+
         SubCategoryBuilder mountReporting = e.startSubCategory(category("mountReporting"));
         mountReporting.add(e.startBooleanToggle(option("mountSkinReportingEnabled"), c.mountSkinReportingEnabled)
                 .setTooltip(tooltip("mountSkinReportingEnabled"))
@@ -291,8 +314,50 @@ public class WTZConfig implements ConfigData {
         mountReporting.add(e.startBooleanToggle(option("mountBreedReportingEnabled"), c.mountBreedReportingEnabled)
                 .setTooltip(tooltip("mountBreedReportingEnabled"))
                 .setDefaultValue(true).setSaveConsumer(v -> c.mountBreedReportingEnabled = v).build());
-
         mounts.addEntry(mountReporting.build());
+
+        SubCategoryBuilder mountAlerts = e.startSubCategory(category("mountAlerts"));
+        mountAlerts.add(e.startBooleanToggle(option("mountHorseColorAlertsEnabled"), c.mountHorseColorAlertsEnabled)
+                .setTooltip(tooltip("mountHorseColorAlertsEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountHorseColorAlertsEnabled = v).build());
+        mountAlerts.add(e.startEnumSelector(option("mountHorseAlertPrimaryColor"), MountHorseAlertPrimaryColor.class, c.mountHorseAlertPrimaryColor)
+                .setTooltip(tooltip("mountHorseAlertPrimaryColor"))
+                .setDefaultValue(MountHorseAlertPrimaryColor.Any)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountHorseAlertPrimaryColor." + v.name()))
+                .setSaveConsumer(v -> c.mountHorseAlertPrimaryColor = v).build());
+        mountAlerts.add(e.startEnumSelector(option("mountHorseAlertSecondaryColor"), MountHorseAlertSecondaryColor.class, c.mountHorseAlertSecondaryColor)
+                .setTooltip(tooltip("mountHorseAlertSecondaryColor"))
+                .setDefaultValue(MountHorseAlertSecondaryColor.Any)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountHorseAlertSecondaryColor." + v.name()))
+                .setSaveConsumer(v -> c.mountHorseAlertSecondaryColor = v).build());
+        mountAlerts.add(e.startBooleanToggle(option("mountWyvernColorAlertsEnabled"), c.mountWyvernColorAlertsEnabled)
+                .setTooltip(tooltip("mountWyvernColorAlertsEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountWyvernColorAlertsEnabled = v).build());
+        mountAlerts.add(e.startEnumSelector(option("mountWyvernAlertPrimaryColor"), MountSkinAlertPrimaryColor.class, c.mountWyvernAlertPrimaryColor)
+                .setTooltip(tooltip("mountWyvernAlertPrimaryColor"))
+                .setDefaultValue(MountSkinAlertPrimaryColor.Any)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountWyvernAlertPrimaryColor." + v.name()))
+                .setSaveConsumer(v -> c.mountWyvernAlertPrimaryColor = v).build());
+        mountAlerts.add(e.startEnumSelector(option("mountWyvernAlertSecondaryColor"), MountSkinAlertSecondaryColor.class, c.mountWyvernAlertSecondaryColor)
+                .setTooltip(tooltip("mountWyvernAlertSecondaryColor"))
+                .setDefaultValue(MountSkinAlertSecondaryColor.Any)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountWyvernAlertSecondaryColor." + v.name()))
+                .setSaveConsumer(v -> c.mountWyvernAlertSecondaryColor = v).build());
+        mountAlerts.add(e.startBooleanToggle(option("mountAdasaurColorAlertsEnabled"), c.mountAdasaurColorAlertsEnabled)
+                .setTooltip(tooltip("mountAdasaurColorAlertsEnabled"))
+                .setDefaultValue(true).setSaveConsumer(v -> c.mountAdasaurColorAlertsEnabled = v).build());
+        mountAlerts.add(e.startEnumSelector(option("mountAdasaurAlertPrimaryColor"), MountAdasaurAlertPrimaryColor.class, c.mountAdasaurAlertPrimaryColor)
+                .setTooltip(tooltip("mountAdasaurAlertPrimaryColor"))
+                .setDefaultValue(MountAdasaurAlertPrimaryColor.Any)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountAdasaurAlertPrimaryColor." + v.name()))
+                .setSaveConsumer(v -> c.mountAdasaurAlertPrimaryColor = v).build());
+        mountAlerts.add(e.startEnumSelector(option("mountAdasaurAlertSecondaryColor"), MountAdasaurAlertSecondaryColor.class, c.mountAdasaurAlertSecondaryColor)
+                .setTooltip(tooltip("mountAdasaurAlertSecondaryColor"))
+                .setDefaultValue(MountAdasaurAlertSecondaryColor.Any)
+                .setEnumNameProvider(v -> Text.translatable("text.autoconfig.wtz-config.option.mountAdasaurAlertSecondaryColor." + v.name()))
+                .setSaveConsumer(v -> c.mountAdasaurAlertSecondaryColor = v).build());
+
+        mounts.addEntry(mountAlerts.build());
         ConfigCategory qol = builder.getOrCreateCategory(category("qualityOfLife"));
         qol.addEntry(e.startBooleanToggle(option("qualityOfLifeEnabled"), c.qualityOfLifeEnabled)
                 .setTooltip(tooltip("qualityOfLifeEnabled"))
@@ -391,5 +456,89 @@ public class WTZConfig implements ConfigData {
         CTRL,
         SHIFT,
         ALT
+    }
+
+    public enum MountSkinAlertPrimaryColor {
+        Any,
+        Azure,
+        Infernal,
+        Ebony,
+        Golden,
+        Cerulean,
+        Bronze,
+        Hollow,
+        Jade,
+        Fledge,
+        Mystic
+    }
+
+    public enum MountSkinAlertSecondaryColor {
+        Any,
+        Kander,
+        Horn,
+        Cinder,
+        Tusk,
+        Ivory,
+        Rose,
+        Quartz,
+        Onyx,
+        Shell,
+        Sapphire
+    }
+
+    public enum MountHorseAlertPrimaryColor {
+        Any,
+        Bay,
+        Gray,
+        Black,
+        Chestnut,
+        Silver,
+        Cherry,
+        Tan,
+        Beige,
+        Gold,
+        White
+    }
+
+    public enum MountHorseAlertSecondaryColor {
+        Any,
+        Argent,
+        Dawn,
+        Night,
+        Reddish,
+        Fawn,
+        Dusk,
+        Pale,
+        Ash,
+        Sable,
+        Rich
+    }
+
+    public enum MountAdasaurAlertPrimaryColor {
+        Any,
+        Crimson,
+        Cobalt,
+        Ash,
+        Dusk,
+        Amber,
+        Emerald,
+        Albino,
+        Sable,
+        Plum,
+        Dust
+    }
+
+    public enum MountAdasaurAlertSecondaryColor {
+        Any,
+        Moss,
+        Bleach,
+        Tawny,
+        Sage,
+        Blood,
+        Raven,
+        Misty,
+        Royal,
+        Rose,
+        Maroon
     }
 }
